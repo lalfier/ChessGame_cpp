@@ -1,6 +1,6 @@
-# Local Coop Chess Game
+# Local Multiplayer  Chess Game
 
-Project for Local Coop Chess Game built in Unreal Engine 4 with c++.
+Project for Local Multiplayer  Chess Game built in Unreal Engine 4 with c++.
 
 ## Features
 
