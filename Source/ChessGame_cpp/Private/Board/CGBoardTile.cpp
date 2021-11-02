@@ -40,7 +40,7 @@ ACGBoardTile::ACGBoardTile()
 	TileMesh->SetRelativeLocation(FVector(0.f, 0.f, 0.f));
 	TileMesh->SetMaterial(0, ConstructorStatics.BaseMaterial.Get());
 	TileMesh->SetupAttachment(DummyRoot);
-	TileMesh->OnClicked.AddDynamic(this, &ACGBoardTile::BlockClicked);
+	TileMesh->OnClicked.AddDynamic(this, &ACGBoardTile::TileClicked);
 
 	// Save a pointer to the materials
 	BaseMaterial = ConstructorStatics.BaseMaterial.Get();
@@ -49,7 +49,7 @@ ACGBoardTile::ACGBoardTile()
 	YellowMaterial = ConstructorStatics.YellowMaterial.Get();
 }
 
-void ACGBoardTile::BlockClicked(UPrimitiveComponent* ClickedComp, FKey ButtonClicked)
+void ACGBoardTile::TileClicked(UPrimitiveComponent* ClickedComp, FKey ButtonClicked)
 {
 	HandleClicked();
 }

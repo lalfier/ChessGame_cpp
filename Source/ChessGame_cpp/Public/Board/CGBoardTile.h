@@ -47,7 +47,7 @@ public:
 
 	/** Handle the tile being clicked */
 	UFUNCTION()
-	void BlockClicked(UPrimitiveComponent* ClickedComp, FKey ButtonClicked);
+	void TileClicked(UPrimitiveComponent* ClickedComp, FKey ButtonClicked);
 
 	void HandleClicked();
 

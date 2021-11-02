@@ -4,12 +4,16 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "Pieces/CGChessPiece.h"
 #include "CGChessBoard.generated.h"
 
 UCLASS()
 class CHESSGAME_CPP_API ACGChessBoard : public AActor
 {
 	GENERATED_BODY()
+
+	/** Number of tiles along each side of grid */
+	const static int32 GRID_SIZE = 8;
 
 	/** Dummy root component */
 	UPROPERTY(Category = Grid, VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
@@ -22,20 +26,38 @@ class CHESSGAME_CPP_API ACGChessBoard : public AActor
 public:
 	ACGChessBoard();
 
-	/** Number of tiles along each side of grid */
+	/** Size of tile in units */
 	UPROPERTY(Category = Grid, EditAnywhere, BlueprintReadOnly)
-	int32 Size;
-
-	/** Spacing of tiles */
-	UPROPERTY(Category = Grid, EditAnywhere, BlueprintReadOnly)
-	float TileSize;
+	float TileUnitSize;
 
 	/** Tile offset from board */
 	UPROPERTY(Category = Grid, EditAnywhere, BlueprintReadOnly)
 	float ZOffset;
 
+	UPROPERTY(Category = Pieces, EditAnywhere, BlueprintReadOnly)
+	TArray<TSubclassOf<ACGChessPiece>> ChessPiecesToSpawn;
+
+	UPROPERTY(Category = Pieces, EditAnywhere, BlueprintReadOnly)
+	TArray<UMaterial*> TeamMaterials;
+
 private:
 	FVector Bounds;
+
+	ACGChessPiece* ChessPiecesOnBoard[GRID_SIZE][GRID_SIZE];
+
+	/** Tile Generation **/
+	void GenerateTiles(int32 GridSize, float TileSize);
+
+	/** Chess Piece Spawning **/
+	void SpawnAllChessPieces();
+	ACGChessPiece* SpawnChessPiece(ChessPieceType Type, int32 Team);
+
+	/** Chess Piece Positioning **/
+	void PositionAllChessPieces(int32 GridSize);
+	void PositionChessPiece(int32 X, int32 Y, bool bForce = false);
+
+	/** Get Tile center in Units **/
+	FVector GetTileCenter(int32 X, int32 Y);
 
 protected:
 	virtual void BeginPlay() override;
