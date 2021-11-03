@@ -55,11 +55,18 @@ void ACGPlayerPawn::TraceForTile(const FVector& Start, const FVector& End, bool 
 		{
 			if(CurrentTileHover)
 			{
-				CurrentTileHover->Highlight(false);
+				if(CurrentTileHover->OwningGrid->ContainsValidMove(CurrentTileHover))
+				{
+					CurrentTileHover->AvailableHighlight(true);
+				}
+				else
+				{
+					CurrentTileHover->HoverHighlight(false);
+				}				
 			}
 			if(HitBlock)
 			{
-				HitBlock->Highlight(true);
+				HitBlock->HoverHighlight(true);
 			}
 			CurrentTileHover = HitBlock;
 		}
@@ -86,7 +93,14 @@ void ACGPlayerPawn::TraceForTile(const FVector& Start, const FVector& End, bool 
 	}
 	else if(CurrentTileHover)
 	{
-		CurrentTileHover->Highlight(false);
+		if(CurrentTileHover->OwningGrid->ContainsValidMove(CurrentTileHover))
+		{
+			CurrentTileHover->AvailableHighlight(true);
+		}
+		else
+		{
+			CurrentTileHover->HoverHighlight(false);
+		}
 		CurrentTileHover = nullptr;
 	}
 	else

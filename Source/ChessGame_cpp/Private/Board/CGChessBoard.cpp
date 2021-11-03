@@ -135,10 +135,10 @@ void ACGChessBoard::SpawnAllChessPieces()
 	ChessPiecesOnBoard[0][5] = SpawnChessPiece(ChessPieceType::Bishop, WhiteTeam);
 	ChessPiecesOnBoard[0][6] = SpawnChessPiece(ChessPieceType::Knight, WhiteTeam);
 	ChessPiecesOnBoard[0][7] = SpawnChessPiece(ChessPieceType::Rook, WhiteTeam);
-	for(int32 i = 0; i < GRID_SIZE; i++)
-	{
-		ChessPiecesOnBoard[1][i] = SpawnChessPiece(ChessPieceType::Pawn, WhiteTeam);
-	}
+	//for(int32 i = 0; i < GRID_SIZE; i++)
+	//{
+	//	ChessPiecesOnBoard[1][i] = SpawnChessPiece(ChessPieceType::Pawn, WhiteTeam);
+	//}
 
 	// Black Team
 	ChessPiecesOnBoard[7][0] = SpawnChessPiece(ChessPieceType::Rook, BlackTeam);
@@ -149,10 +149,10 @@ void ACGChessBoard::SpawnAllChessPieces()
 	ChessPiecesOnBoard[7][5] = SpawnChessPiece(ChessPieceType::Bishop, BlackTeam);
 	ChessPiecesOnBoard[7][6] = SpawnChessPiece(ChessPieceType::Knight, BlackTeam);
 	ChessPiecesOnBoard[7][7] = SpawnChessPiece(ChessPieceType::Rook, BlackTeam);
-	for(int32 i = 0; i < GRID_SIZE; i++)
-	{
-		ChessPiecesOnBoard[6][i] = SpawnChessPiece(ChessPieceType::Pawn, BlackTeam);
-	}
+	//for(int32 i = 0; i < GRID_SIZE; i++)
+	//{
+	//	ChessPiecesOnBoard[6][i] = SpawnChessPiece(ChessPieceType::Pawn, BlackTeam);
+	//}
 }
 
 ACGChessPiece* ACGChessBoard::SpawnChessPiece(ChessPieceType Type, int32 Team)
@@ -193,6 +193,11 @@ void ACGChessBoard::PositionChessPiece(int32 X, int32 Y, bool bForce /*= false*/
 
 bool ACGChessBoard::MovePieceTo(ACGChessPiece* PieceDragging, int32 XIndex, int32 YIndex)
 {
+	if(!ContainsValidMove(XIndex, YIndex))
+	{
+		return false;
+	}
+
 	FIntPoint PreviousIndexPos = FIntPoint(PieceDragging->CurrentX, PieceDragging->CurrentY);
 
 	// Check is there another piece on the target position
@@ -252,6 +257,51 @@ FIntPoint ACGChessBoard::GetTileIndex(int32 GridSize, ACGBoardTile* Tile)
 	return FIntPoint(-1, -1);
 }
 
+void ACGChessBoard::HighlightAvailableTiles()
+{
+	for(int i = 0; i < AvailableMoves.Num(); i++)
+	{
+		ChessTiles[AvailableMoves[i].X][AvailableMoves[i].Y]->AvailableHighlight(true);
+	}
+}
+
+void ACGChessBoard::RemoveHighlightTiles()
+{
+	for(int i = 0; i < AvailableMoves.Num(); i++)
+	{
+		ChessTiles[AvailableMoves[i].X][AvailableMoves[i].Y]->AvailableHighlight(false);
+	}
+	AvailableMoves.Empty();
+}
+
+bool ACGChessBoard::ContainsValidMove(ACGBoardTile* Tile)
+{
+	FIntPoint TileIndex = GetTileIndex(GRID_SIZE, Tile);
+
+	for(int32 i = 0; i < AvailableMoves.Num(); i++)
+	{
+		if(AvailableMoves[i].X == TileIndex.X && AvailableMoves[i].Y == TileIndex.Y)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+bool ACGChessBoard::ContainsValidMove(int32 XIndex, int32 YIndex)
+{
+	for(int32 i = 0; i < AvailableMoves.Num(); i++)
+	{
+		if(AvailableMoves[i].X == XIndex && AvailableMoves[i].Y == YIndex)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void ACGChessBoard::HandleTileClicked(ACGBoardTile* Tile)
 {
 	FIntPoint TileIndexPos = GetTileIndex(GRID_SIZE, Tile);
@@ -262,6 +312,11 @@ void ACGChessBoard::HandleTileClicked(ACGBoardTile* Tile)
 		if(true)
 		{
 			CurrentPieceDragging = ChessPiecesOnBoard[TileIndexPos.X][TileIndexPos.Y];
+
+			// Get list of available moves
+			AvailableMoves = CurrentPieceDragging->GetAvailableMoves(ChessPiecesOnBoard, GRID_SIZE);
+			// Highlight tiles
+			HighlightAvailableTiles();
 		}
 	}
 }
@@ -270,7 +325,7 @@ void ACGChessBoard::HandleTileReleased(ACGBoardTile* Tile)
 {
 	if(CurrentPieceDragging)
 	{
-		FIntPoint PreviousIndexPos = FIntPoint(CurrentPieceDragging->CurrentX, CurrentPieceDragging->CurrentY);
+		FIntPoint PreviousIndexPos = FIntPoint(CurrentPieceDragging->CurrentX, CurrentPieceDragging->CurrentY);		
 
 		if(Tile)
 		{
@@ -287,5 +342,7 @@ void ACGChessBoard::HandleTileReleased(ACGBoardTile* Tile)
 			CurrentPieceDragging->SetPiecePosition(GetTileCenter(PreviousIndexPos.X, PreviousIndexPos.Y));
 			CurrentPieceDragging = nullptr;
 		}
+
+		RemoveHighlightTiles();
 	}
 }

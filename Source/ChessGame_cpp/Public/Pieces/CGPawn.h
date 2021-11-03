@@ -13,4 +13,6 @@ class CHESSGAME_CPP_API ACGPawn : public ACGChessPiece
 	
 public:
 	ACGPawn();
+
+	virtual TArray<FIntPoint> GetAvailableMoves(ACGChessPiece* PiecesOnBoard[GRID_SIZE][GRID_SIZE], int32 GridSize) override;
 };

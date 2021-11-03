@@ -13,4 +13,6 @@ class CHESSGAME_CPP_API ACGRook : public ACGChessPiece
 	
 public:
 	ACGRook();
+
+	virtual TArray<FIntPoint> GetAvailableMoves(ACGChessPiece* PiecesOnBoard[GRID_SIZE][GRID_SIZE], int32 GridSize) override;
 };

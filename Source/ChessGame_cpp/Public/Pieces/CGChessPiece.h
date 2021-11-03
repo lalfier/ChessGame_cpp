@@ -6,6 +6,10 @@
 #include "GameFramework/Actor.h"
 #include "CGChessPiece.generated.h"
 
+#ifndef GRID_SIZE
+#define GRID_SIZE  8
+#endif
+
 UENUM()
 enum ChessPieceType
 {
@@ -47,6 +51,8 @@ public:
 	virtual void SetPiecePosition(FVector Position, bool bForce = false);
 
 	virtual void SetPieceScale(FVector Scale, bool bForce = false);
+
+	virtual TArray<FIntPoint> GetAvailableMoves(ACGChessPiece* PiecesOnBoard[GRID_SIZE][GRID_SIZE], int32 GridSize);
 
 protected:
 	/** Dummy root component */

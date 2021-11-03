@@ -48,3 +48,9 @@ void ACGChessPiece::SetPieceScale(FVector Scale, bool bForce /*= false*/)
 		PieceMesh->SetRelativeScale3D(Scale);
 	}
 }
+
+TArray<FIntPoint> ACGChessPiece::GetAvailableMoves(ACGChessPiece* PiecesOnBoard[GRID_SIZE][GRID_SIZE], int32 GridSize)
+{
+	TArray<FIntPoint> NoMoves;
+	return NoMoves;
+}

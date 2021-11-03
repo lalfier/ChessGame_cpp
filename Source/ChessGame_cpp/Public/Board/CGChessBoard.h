@@ -7,15 +7,16 @@
 #include "Pieces/CGChessPiece.h"
 #include "CGChessBoard.generated.h"
 
+#ifndef GRID_SIZE
+#define GRID_SIZE  8
+#endif
+
 class ACGBoardTile;
 
 UCLASS()
 class CHESSGAME_CPP_API ACGChessBoard : public AActor
 {
 	GENERATED_BODY()
-
-	/** Number of tiles along each side of grid */
-	const static int32 GRID_SIZE = 8;
 
 	/** Dummy root component */
 	UPROPERTY(Category = Grid, VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
@@ -58,6 +59,8 @@ public:
 	UPROPERTY(Category = Pieces, EditAnywhere, BlueprintReadOnly)
 	TArray<UMaterial*> TeamMaterials;
 
+	bool ContainsValidMove(ACGBoardTile* Tile);
+
 	void HandleTileClicked(ACGBoardTile* Tile);
 
 	void HandleTileReleased(ACGBoardTile* Tile);
@@ -75,6 +78,8 @@ private:
 
 	TArray<ACGChessPiece*> BlackPiecesDead;
 
+	TArray<FIntPoint> AvailableMoves;
+
 	/** Tile Generation */
 	void GenerateTiles(int32 GridSize, float TileSize);
 
@@ -88,11 +93,19 @@ private:
 
 	bool MovePieceTo(ACGChessPiece* PieceDragging, int32 XIndex, int32 YIndex);
 
+	bool ContainsValidMove(int32 XIndex, int32 YIndex);
+
 	/** Get Tile center in Units */
 	FVector GetTileCenter(int32 X, int32 Y);
 
 	/** Get Tile X and Y index from array */
-	FIntPoint GetTileIndex(int32 GridSize, ACGBoardTile* Tile);
+	FIntPoint GetTileIndex(int32 GridSize, ACGBoardTile* Tile);	
+
+	/** Highlight tiles for available moves */
+	void HighlightAvailableTiles();
+
+	/** REmove Highlight tiles */
+	void RemoveHighlightTiles();
 
 protected:
 	virtual void BeginPlay() override;

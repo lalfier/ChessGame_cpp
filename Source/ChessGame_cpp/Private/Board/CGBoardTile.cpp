@@ -79,7 +79,7 @@ void ACGBoardTile::HandleReleased(bool bIsHovered)
 	}
 }
 
-void ACGBoardTile::Highlight(bool bOn)
+void ACGBoardTile::HoverHighlight(bool bOn)
 {
 	// Do not highlight if the tile has already been activated.
 	if(bIsActive)
@@ -91,6 +91,19 @@ void ACGBoardTile::Highlight(bool bOn)
 	if(bOn)
 	{
 		TileMesh->SetMaterial(0, YellowMaterial);
+	}
+	else
+	{
+		TileMesh->SetMaterial(0, BaseMaterial);
+	}
+}
+
+void ACGBoardTile::AvailableHighlight(bool bOn)
+{
+	// Change material
+	if(bOn)
+	{
+		TileMesh->SetMaterial(0, GreenMaterial);
 	}
 	else
 	{

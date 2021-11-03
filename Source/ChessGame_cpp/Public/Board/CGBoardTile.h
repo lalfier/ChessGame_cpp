@@ -49,7 +49,9 @@ public:
 
 	void HandleReleased(bool bIsHovered);
 
-	void Highlight(bool bOn);
+	void HoverHighlight(bool bOn);
+
+	void AvailableHighlight(bool bOn);
 
 public:
 	/** Returns DummyRoot sub-object */
