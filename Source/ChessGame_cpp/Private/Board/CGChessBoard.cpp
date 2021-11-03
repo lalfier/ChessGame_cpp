@@ -15,6 +15,9 @@
 // Sets default values
 ACGChessBoard::ACGChessBoard()
 {
+	// Set this character to call Tick() every frame.
+	PrimaryActorTick.bCanEverTick = true;
+
 	// Structure to hold one-time initialization
 	struct FConstructorStatics
 	{
@@ -43,6 +46,9 @@ ACGChessBoard::ACGChessBoard()
 	// Set defaults
 	TileUnitSize = 100.f;
 	ZOffset = 1.f;
+	DragOffset = 100.f;
+	DeadPieceScale = 0.3f;
+	DeadPieceSpacing = 40.f;
 
 	// Save a pointer to the materials
 	TeamMaterials.Add(ConstructorStatics.WhiteMaterial.Get());
@@ -66,6 +72,17 @@ void ACGChessBoard::BeginPlay()
 	SpawnAllChessPieces();
 
 	PositionAllChessPieces(GRID_SIZE);
+}
+
+void ACGChessBoard::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+
+	if(CurrentPieceDragging)
+	{
+		MousePosition.Z += DragOffset;
+		CurrentPieceDragging->SetPiecePosition(MousePosition);
+	}
 }
 
 void ACGChessBoard::GenerateTiles(int32 GridSize, float TileSize)
@@ -171,7 +188,43 @@ void ACGChessBoard::PositionChessPiece(int32 X, int32 Y, bool bForce /*= false*/
 {
 	ChessPiecesOnBoard[X][Y]->CurrentX = X;
 	ChessPiecesOnBoard[X][Y]->CurrentY = Y;
-	ChessPiecesOnBoard[X][Y]->SetActorLocation(GetTileCenter(X, Y));
+	ChessPiecesOnBoard[X][Y]->SetPiecePosition(GetTileCenter(X, Y), bForce);
+}
+
+bool ACGChessBoard::MovePieceTo(ACGChessPiece* PieceDragging, int32 XIndex, int32 YIndex)
+{
+	FIntPoint PreviousIndexPos = FIntPoint(PieceDragging->CurrentX, PieceDragging->CurrentY);
+
+	// Check is there another piece on the target position
+	if(ChessPiecesOnBoard[XIndex][YIndex])
+	{
+		ACGChessPiece* TargetPiece = ChessPiecesOnBoard[XIndex][YIndex];
+		// Same team
+		if(PieceDragging->Team == TargetPiece->Team)
+		{
+			return false;
+		}
+
+		// Enemy team
+		if(TargetPiece->Team == 0)
+		{
+			WhitePiecesDead.Add(TargetPiece);
+			TargetPiece->SetPiecePosition(FVector(-1 * TileUnitSize, 8 * TileUnitSize, ZOffset + 15) - Bounds + (FVector::ForwardVector * DeadPieceSpacing * (WhitePiecesDead.Num() - 1)));
+		}
+		else
+		{
+			BlackPiecesDead.Add(TargetPiece);
+			TargetPiece->SetPiecePosition(FVector(8 * TileUnitSize, -1 * TileUnitSize, ZOffset + 15) - Bounds + (FVector::BackwardVector * DeadPieceSpacing * (BlackPiecesDead.Num() - 1)));
+		}
+		TargetPiece->SetPieceScale(FVector::OneVector * DeadPieceScale);
+	}
+
+	ChessPiecesOnBoard[XIndex][YIndex] = PieceDragging;
+	ChessPiecesOnBoard[PreviousIndexPos.X][PreviousIndexPos.Y] = nullptr;
+
+	PositionChessPiece(XIndex, YIndex);
+
+	return true;
 }
 
 FVector ACGChessBoard::GetTileCenter(int32 X, int32 Y)
@@ -197,4 +250,42 @@ FIntPoint ACGChessBoard::GetTileIndex(int32 GridSize, ACGBoardTile* Tile)
 	}
 
 	return FIntPoint(-1, -1);
+}
+
+void ACGChessBoard::HandleTileClicked(ACGBoardTile* Tile)
+{
+	FIntPoint TileIndexPos = GetTileIndex(GRID_SIZE, Tile);
+
+	if(ChessPiecesOnBoard[TileIndexPos.X][TileIndexPos.Y])
+	{
+		// TODO - Is our turn?
+		if(true)
+		{
+			CurrentPieceDragging = ChessPiecesOnBoard[TileIndexPos.X][TileIndexPos.Y];
+		}
+	}
+}
+
+void ACGChessBoard::HandleTileReleased(ACGBoardTile* Tile)
+{
+	if(CurrentPieceDragging)
+	{
+		FIntPoint PreviousIndexPos = FIntPoint(CurrentPieceDragging->CurrentX, CurrentPieceDragging->CurrentY);
+
+		if(Tile)
+		{
+			FIntPoint TileIndexPos = GetTileIndex(GRID_SIZE, Tile);
+			bool bValidMove = MovePieceTo(CurrentPieceDragging, TileIndexPos.X, TileIndexPos.Y);
+			if(!bValidMove)
+			{
+				CurrentPieceDragging->SetPiecePosition(GetTileCenter(PreviousIndexPos.X, PreviousIndexPos.Y));				
+			}
+			CurrentPieceDragging = nullptr;
+		}
+		else
+		{
+			CurrentPieceDragging->SetPiecePosition(GetTileCenter(PreviousIndexPos.X, PreviousIndexPos.Y));
+			CurrentPieceDragging = nullptr;
+		}
+	}
 }

@@ -6,6 +6,9 @@
 // Sets default values
 ACGChessPiece::ACGChessPiece()
 {
+	// Set this character to call Tick() every frame.
+	PrimaryActorTick.bCanEverTick = true;
+
 	// Create dummy root scene component
 	DummyRoot = CreateDefaultSubobject<USceneComponent>(TEXT("Dummy0"));
 	RootComponent = DummyRoot;
@@ -13,7 +16,35 @@ ACGChessPiece::ACGChessPiece()
 	// Create static mesh component
 	PieceMesh = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("PieceMesh0"));
 	PieceMesh->SetRelativeScale3D(FVector(0.665f, 0.665f, 0.665f));
+	DefaultScale = PieceMesh->GetRelativeScale3D();
+	DesiredScale = DefaultScale;
 	PieceMesh->SetRelativeLocation(FVector(0.f, 0.f, 0.f));
 	PieceMesh->SetCollisionProfileName("Pawn");
 	PieceMesh->SetupAttachment(DummyRoot);
+}
+
+void ACGChessPiece::Tick(float DeltaSeconds)
+{
+	Super::Tick(DeltaSeconds);
+
+	SetActorLocation(FMath::VInterpTo(GetActorLocation(), DesiredPosition, DeltaSeconds, 10));
+	PieceMesh->SetRelativeScale3D(FMath::VInterpTo(PieceMesh->GetRelativeScale3D(), DesiredScale, DeltaSeconds, 10));
+}
+
+void ACGChessPiece::SetPiecePosition(FVector Position, bool bForce /*= false*/)
+{
+	DesiredPosition = Position;
+	if(bForce)
+	{
+		SetActorLocation(DesiredPosition);
+	}
+}
+
+void ACGChessPiece::SetPieceScale(FVector Scale, bool bForce /*= false*/)
+{
+	DesiredScale = Scale;
+	if(bForce)
+	{
+		PieceMesh->SetRelativeScale3D(Scale);
+	}
 }

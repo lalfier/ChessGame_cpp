@@ -26,6 +26,8 @@ class CHESSGAME_CPP_API ACGChessPiece : public AActor
 public:		
 	ACGChessPiece();
 
+	virtual void Tick(float DeltaSeconds) override;
+
 	/** StaticMesh component for the chess piece */
 	UPROPERTY(Category = Piece, VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	class UStaticMeshComponent* PieceMesh;
@@ -42,12 +44,18 @@ public:
 
 	int32 CurrentY;
 
+	virtual void SetPiecePosition(FVector Position, bool bForce = false);
+
+	virtual void SetPieceScale(FVector Scale, bool bForce = false);
+
 protected:
 	/** Dummy root component */
 	UPROPERTY(Category = Piece, VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	class USceneComponent* DummyRoot;
 
+private:
 	FVector DesiredPosition;
 
+	FVector DefaultScale;
 	FVector DesiredScale;
 };

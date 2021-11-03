@@ -3,6 +3,7 @@
 
 #include "CGPlayerPawn.h"
 #include "Board/CGBoardTile.h"
+#include "Board/CGChessBoard.h"
 #include "CGPlayerController.h"
 #include "Engine/World.h"
 #include "DrawDebugHelpers.h"
@@ -29,6 +30,11 @@ void ACGPlayerPawn::Tick(float DeltaSeconds)
 		PC->DeprojectMousePositionToWorld(Start, Dir);
 		End = Start + (Dir * 8000.0f);
 		TraceForTile(Start, End, false);
+
+		if(CurrentTileClick)
+		{
+			CurrentTileClick->OwningGrid->MousePosition = FMath::LinePlaneIntersection(Start, End, CurrentTileClick->OwningGrid->GetActorLocation(), FVector::UpVector);
+		}
 	}
 }
 
@@ -60,10 +66,11 @@ void ACGPlayerPawn::TraceForTile(const FVector& Start, const FVector& End, bool 
 
 		if(PC->IsInputKeyDown(EKeys::LeftMouseButton))
 		{
-			if(CurrentTileClick == nullptr)
+			if(CurrentTileClick == nullptr && HitBlock)
 			{
 				CurrentTileClick = HitBlock;
 				CurrentTileClick->HandleClicked();
+				CurrentTileClick->OwningGrid->HandleTileClicked(HitBlock);
 			}
 		}
 		else
@@ -72,6 +79,7 @@ void ACGPlayerPawn::TraceForTile(const FVector& Start, const FVector& End, bool 
 			{
 				bool bHovered = CurrentTileClick == HitBlock ? true : false;
 				CurrentTileClick->HandleReleased(bHovered);
+				CurrentTileClick->OwningGrid->HandleTileReleased(HitBlock);
 				CurrentTileClick = nullptr;
 			}
 		}
@@ -88,6 +96,7 @@ void ACGPlayerPawn::TraceForTile(const FVector& Start, const FVector& End, bool 
 			if(CurrentTileClick)
 			{
 				CurrentTileClick->HandleReleased(false);
+				CurrentTileClick->OwningGrid->HandleTileReleased(nullptr);
 				CurrentTileClick = nullptr;
 			}
 		}

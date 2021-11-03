@@ -28,6 +28,10 @@ class CHESSGAME_CPP_API ACGChessBoard : public AActor
 public:
 	ACGChessBoard();
 
+	virtual void Tick(float DeltaSeconds) override;
+
+	FVector MousePosition;
+
 	/** Size of tile in units */
 	UPROPERTY(Category = Grid, EditAnywhere, BlueprintReadOnly)
 	float TileUnitSize;
@@ -36,18 +40,40 @@ public:
 	UPROPERTY(Category = Grid, EditAnywhere, BlueprintReadOnly)
 	float ZOffset;
 
+	/** Tile offset from board */
+	UPROPERTY(Category = Grid, EditAnywhere, BlueprintReadOnly)
+	float DragOffset;
+
+	/** Scale for dead pieces */
+	UPROPERTY(Category = Grid, EditAnywhere, BlueprintReadOnly)
+	float DeadPieceScale;
+
+	/** Offset between dead pieces on board side */
+	UPROPERTY(Category = Grid, EditAnywhere, BlueprintReadOnly)
+	float DeadPieceSpacing;
+
 	UPROPERTY(Category = Pieces, EditAnywhere, BlueprintReadOnly)
 	TArray<TSubclassOf<ACGChessPiece>> ChessPiecesToSpawn;
 
 	UPROPERTY(Category = Pieces, EditAnywhere, BlueprintReadOnly)
 	TArray<UMaterial*> TeamMaterials;
 
+	void HandleTileClicked(ACGBoardTile* Tile);
+
+	void HandleTileReleased(ACGBoardTile* Tile);
+
 private:
 	FVector Bounds;
+
+	ACGChessPiece* CurrentPieceDragging;
 
 	ACGBoardTile* ChessTiles[GRID_SIZE][GRID_SIZE];
 
 	ACGChessPiece* ChessPiecesOnBoard[GRID_SIZE][GRID_SIZE];
+
+	TArray<ACGChessPiece*> WhitePiecesDead;
+
+	TArray<ACGChessPiece*> BlackPiecesDead;
 
 	/** Tile Generation */
 	void GenerateTiles(int32 GridSize, float TileSize);
@@ -59,6 +85,8 @@ private:
 	/** Chess Piece Positioning */
 	void PositionAllChessPieces(int32 GridSize);
 	void PositionChessPiece(int32 X, int32 Y, bool bForce = false);
+
+	bool MovePieceTo(ACGChessPiece* PieceDragging, int32 XIndex, int32 YIndex);
 
 	/** Get Tile center in Units */
 	FVector GetTileCenter(int32 X, int32 Y);
