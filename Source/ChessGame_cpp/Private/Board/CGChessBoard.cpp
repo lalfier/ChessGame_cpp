@@ -94,9 +94,12 @@ void ACGChessBoard::GenerateTiles(int32 GridSize, float TileSize)
 		if(NewTile != nullptr)
 		{
 			NewTile->SetActorScale3D(FVector(TileSize/100, TileSize/100, TileSize/100));
-			NewTile->SetActorLabel(FString::Printf(TEXT("X:%d, Y:%d"), (int32)(XOffset/TileSize), (int32)(YOffset/TileSize)));
+			int32 XIndex = (int32)(XOffset/TileSize);
+			int32 YIndex = (int32)(YOffset/TileSize);			
+			NewTile->SetActorLabel(FString::Printf(TEXT("X:%d, Y:%d"), XIndex, YIndex));
 			NewTile->OwningGrid = this;
 			NewTile->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
+			ChessTiles[XIndex][YIndex] = NewTile;
 		}
 	}
 }
@@ -174,4 +177,24 @@ void ACGChessBoard::PositionChessPiece(int32 X, int32 Y, bool bForce /*= false*/
 FVector ACGChessBoard::GetTileCenter(int32 X, int32 Y)
 {
 	return FVector(X * TileUnitSize, Y * TileUnitSize, ZOffset) - Bounds;
+}
+
+FIntPoint ACGChessBoard::GetTileIndex(int32 GridSize, ACGBoardTile* Tile)
+{
+	// Number of tiles
+	const int32 NumTiles = GridSize * GridSize;
+
+	// Loop to spawn each tile
+	for(int32 TileIndex = 0; TileIndex < NumTiles; TileIndex++)
+	{
+		const int32 XPos = (TileIndex / GridSize); // Divide by dimension
+		const int32 YPos = (TileIndex % GridSize); // Modulo gives remainder
+
+		if(ChessTiles[XPos][YPos] == Tile)
+		{
+			return FIntPoint(XPos, YPos);
+		}
+	}
+
+	return FIntPoint(-1, -1);
 }

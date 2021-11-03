@@ -6,6 +6,8 @@
 #include "GameFramework/Pawn.h"
 #include "CGPlayerPawn.generated.h"
 
+class ACGPlayerController;
+
 UCLASS(config=Game)
 class CHESSGAME_CPP_API ACGPlayerPawn : public APawn
 {
@@ -13,11 +15,16 @@ class CHESSGAME_CPP_API ACGPlayerPawn : public APawn
 
 public:
 	virtual void Tick(float DeltaSeconds) override;
-	virtual void CalcCamera(float DeltaTime, struct FMinimalViewInfo& OutResult) override;
 
 protected:
-	void TraceForBlock(const FVector& Start, const FVector& End, bool bDrawDebugHelpers);
+	virtual void BeginPlay() override;
+	void TraceForTile(const FVector& Start, const FVector& End, bool bDrawDebugHelpers);
 
 	UPROPERTY(EditInstanceOnly, BlueprintReadWrite)
-	class ACGBoardTile* CurrentBlockFocus;
+	class ACGBoardTile* CurrentTileHover;
+
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite)
+	class ACGBoardTile* CurrentTileClick;
+
+	ACGPlayerController* PC;
 };

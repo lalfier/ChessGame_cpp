@@ -45,22 +45,20 @@ public:
 	UPROPERTY()
 	class ACGChessBoard* OwningGrid;
 
-	/** Handle the tile being clicked */
-	UFUNCTION()
-	void TileClicked(UPrimitiveComponent* ClickedComp, FKey ButtonClicked);
-
 	void HandleClicked();
+
+	void HandleReleased(bool bIsHovered);
 
 	void Highlight(bool bOn);
 
 public:
-	/** Returns DummyRoot subobject **/
+	/** Returns DummyRoot sub-object */
 	FORCEINLINE class USceneComponent* GetDummyRoot() const
 	{
 		return DummyRoot;
 	}
 
-	/** Returns TileMesh subobject **/
+	/** Returns TileMesh sub-object */
 	FORCEINLINE class UStaticMeshComponent* GetTileMesh() const
 	{
 		return TileMesh;

@@ -40,18 +40,12 @@ ACGBoardTile::ACGBoardTile()
 	TileMesh->SetRelativeLocation(FVector(0.f, 0.f, 0.f));
 	TileMesh->SetMaterial(0, ConstructorStatics.BaseMaterial.Get());
 	TileMesh->SetupAttachment(DummyRoot);
-	TileMesh->OnClicked.AddDynamic(this, &ACGBoardTile::TileClicked);
 
 	// Save a pointer to the materials
 	BaseMaterial = ConstructorStatics.BaseMaterial.Get();
 	GreenMaterial = ConstructorStatics.GreenMaterial.Get();
 	RedMaterial = ConstructorStatics.RedMaterial.Get();
 	YellowMaterial = ConstructorStatics.YellowMaterial.Get();
-}
-
-void ACGBoardTile::TileClicked(UPrimitiveComponent* ClickedComp, FKey ButtonClicked)
-{
-	HandleClicked();
 }
 
 void ACGBoardTile::HandleClicked()
@@ -64,12 +58,24 @@ void ACGBoardTile::HandleClicked()
 		// Change material
 		TileMesh->SetMaterial(0, RedMaterial);
 	}
-	else
+}
+
+void ACGBoardTile::HandleReleased(bool bIsHovered)
+{
+	// Check we are already active
+	if(bIsActive)
 	{
 		bIsActive = false;
 
 		// Change material
-		TileMesh->SetMaterial(0, YellowMaterial);
+		if(bIsHovered)
+		{
+			TileMesh->SetMaterial(0, YellowMaterial);
+		}
+		else
+		{
+			TileMesh->SetMaterial(0, BaseMaterial);
+		}		
 	}
 }
 
@@ -81,6 +87,7 @@ void ACGBoardTile::Highlight(bool bOn)
 		return;
 	}
 
+	// Change material
 	if(bOn)
 	{
 		TileMesh->SetMaterial(0, YellowMaterial);

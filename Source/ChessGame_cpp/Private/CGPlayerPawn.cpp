@@ -3,38 +3,36 @@
 
 #include "CGPlayerPawn.h"
 #include "Board/CGBoardTile.h"
-#include "HeadMountedDisplayFunctionLibrary.h"
-#include "Camera/CameraComponent.h"
-#include "GameFramework/PlayerController.h"
+#include "CGPlayerController.h"
 #include "Engine/World.h"
 #include "DrawDebugHelpers.h"
 
 ACGPlayerPawn::ACGPlayerPawn(const FObjectInitializer& ObjectInitializer) : Super(ObjectInitializer)
 {
-	AutoPossessPlayer = EAutoReceiveInput::Player0;
+	AutoPossessPlayer = EAutoReceiveInput::Player0;	
+}
+
+void ACGPlayerPawn::BeginPlay()
+{
+	Super::BeginPlay();
+
+	PC = Cast<ACGPlayerController>(GetController());
 }
 
 void ACGPlayerPawn::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	if(APlayerController* PC = Cast<APlayerController>(GetController()))
+	if(PC)
 	{
 		FVector Start, Dir, End;
 		PC->DeprojectMousePositionToWorld(Start, Dir);
 		End = Start + (Dir * 8000.0f);
-		TraceForBlock(Start, End, false);
+		TraceForTile(Start, End, false);
 	}
 }
 
-void ACGPlayerPawn::CalcCamera(float DeltaTime, struct FMinimalViewInfo& OutResult)
-{
-	Super::CalcCamera(DeltaTime, OutResult);
-
-	OutResult.Rotation = FRotator(-90.0f, -90.0f, 0.0f);
-}
-
-void ACGPlayerPawn::TraceForBlock(const FVector& Start, const FVector& End, bool bDrawDebugHelpers)
+void ACGPlayerPawn::TraceForTile(const FVector& Start, const FVector& End, bool bDrawDebugHelpers)
 {
 	FHitResult HitResult;
 	GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility);
@@ -47,22 +45,51 @@ void ACGPlayerPawn::TraceForBlock(const FVector& Start, const FVector& End, bool
 	if(HitResult.Actor.IsValid())
 	{
 		ACGBoardTile* HitBlock = Cast<ACGBoardTile>(HitResult.Actor.Get());
-		if(CurrentBlockFocus != HitBlock)
+		if(CurrentTileHover != HitBlock)
 		{
-			if(CurrentBlockFocus)
+			if(CurrentTileHover)
 			{
-				CurrentBlockFocus->Highlight(false);
+				CurrentTileHover->Highlight(false);
 			}
 			if(HitBlock)
 			{
 				HitBlock->Highlight(true);
 			}
-			CurrentBlockFocus = HitBlock;
+			CurrentTileHover = HitBlock;
+		}
+
+		if(PC->IsInputKeyDown(EKeys::LeftMouseButton))
+		{
+			if(CurrentTileClick == nullptr)
+			{
+				CurrentTileClick = HitBlock;
+				CurrentTileClick->HandleClicked();
+			}
+		}
+		else
+		{
+			if(CurrentTileClick)
+			{
+				bool bHovered = CurrentTileClick == HitBlock ? true : false;
+				CurrentTileClick->HandleReleased(bHovered);
+				CurrentTileClick = nullptr;
+			}
 		}
 	}
-	else if(CurrentBlockFocus)
+	else if(CurrentTileHover)
 	{
-		CurrentBlockFocus->Highlight(false);
-		CurrentBlockFocus = nullptr;
+		CurrentTileHover->Highlight(false);
+		CurrentTileHover = nullptr;
+	}
+	else
+	{
+		if(!PC->IsInputKeyDown(EKeys::LeftMouseButton))
+		{
+			if(CurrentTileClick)
+			{
+				CurrentTileClick->HandleReleased(false);
+				CurrentTileClick = nullptr;
+			}
+		}
 	}
 }

@@ -7,6 +7,8 @@
 #include "Pieces/CGChessPiece.h"
 #include "CGChessBoard.generated.h"
 
+class ACGBoardTile;
+
 UCLASS()
 class CHESSGAME_CPP_API ACGChessBoard : public AActor
 {
@@ -43,27 +45,32 @@ public:
 private:
 	FVector Bounds;
 
+	ACGBoardTile* ChessTiles[GRID_SIZE][GRID_SIZE];
+
 	ACGChessPiece* ChessPiecesOnBoard[GRID_SIZE][GRID_SIZE];
 
-	/** Tile Generation **/
+	/** Tile Generation */
 	void GenerateTiles(int32 GridSize, float TileSize);
 
-	/** Chess Piece Spawning **/
+	/** Chess Piece Spawning */
 	void SpawnAllChessPieces();
 	ACGChessPiece* SpawnChessPiece(ChessPieceType Type, int32 Team);
 
-	/** Chess Piece Positioning **/
+	/** Chess Piece Positioning */
 	void PositionAllChessPieces(int32 GridSize);
 	void PositionChessPiece(int32 X, int32 Y, bool bForce = false);
 
-	/** Get Tile center in Units **/
+	/** Get Tile center in Units */
 	FVector GetTileCenter(int32 X, int32 Y);
+
+	/** Get Tile X and Y index from array */
+	FIntPoint GetTileIndex(int32 GridSize, ACGBoardTile* Tile);
 
 protected:
 	virtual void BeginPlay() override;
 
 public:
-	/** Returns DummyRoot subobject **/
+	/** Returns DummyRoot sub-object */
 	FORCEINLINE class USceneComponent* GetDummyRoot() const
 	{
 		return DummyRoot;
