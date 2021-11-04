@@ -9,7 +9,7 @@
 #include "Pieces/CGBishop.h"
 #include "Pieces/CGQueen.h"
 #include "Pieces/CGKing.h"
-#include "Components/TextRenderComponent.h"
+#include "CGGameState.h"
 #include "Engine/World.h"
 
 // Sets default values
@@ -66,6 +66,8 @@ ACGChessBoard::ACGChessBoard()
 void ACGChessBoard::BeginPlay()
 {
 	Super::BeginPlay();
+
+	GS = GetWorld()->GetGameState<ACGGameState>();
 
 	GenerateTiles(GRID_SIZE, TileUnitSize);
 
@@ -135,10 +137,10 @@ void ACGChessBoard::SpawnAllChessPieces()
 	ChessPiecesOnBoard[0][5] = SpawnChessPiece(ChessPieceType::Bishop, WhiteTeam);
 	ChessPiecesOnBoard[0][6] = SpawnChessPiece(ChessPieceType::Knight, WhiteTeam);
 	ChessPiecesOnBoard[0][7] = SpawnChessPiece(ChessPieceType::Rook, WhiteTeam);
-	//for(int32 i = 0; i < GRID_SIZE; i++)
-	//{
-	//	ChessPiecesOnBoard[1][i] = SpawnChessPiece(ChessPieceType::Pawn, WhiteTeam);
-	//}
+	for(int32 i = 0; i < GRID_SIZE; i++)
+	{
+		ChessPiecesOnBoard[1][i] = SpawnChessPiece(ChessPieceType::Pawn, WhiteTeam);
+	}
 
 	// Black Team
 	ChessPiecesOnBoard[7][0] = SpawnChessPiece(ChessPieceType::Rook, BlackTeam);
@@ -149,10 +151,10 @@ void ACGChessBoard::SpawnAllChessPieces()
 	ChessPiecesOnBoard[7][5] = SpawnChessPiece(ChessPieceType::Bishop, BlackTeam);
 	ChessPiecesOnBoard[7][6] = SpawnChessPiece(ChessPieceType::Knight, BlackTeam);
 	ChessPiecesOnBoard[7][7] = SpawnChessPiece(ChessPieceType::Rook, BlackTeam);
-	//for(int32 i = 0; i < GRID_SIZE; i++)
-	//{
-	//	ChessPiecesOnBoard[6][i] = SpawnChessPiece(ChessPieceType::Pawn, BlackTeam);
-	//}
+	for(int32 i = 0; i < GRID_SIZE; i++)
+	{
+		ChessPiecesOnBoard[6][i] = SpawnChessPiece(ChessPieceType::Pawn, BlackTeam);
+	}
 }
 
 ACGChessPiece* ACGChessBoard::SpawnChessPiece(ChessPieceType Type, int32 Team)
@@ -213,11 +215,21 @@ bool ACGChessBoard::MovePieceTo(ACGChessPiece* PieceDragging, int32 XIndex, int3
 		// Enemy team
 		if(TargetPiece->Team == 0)
 		{
+			if(TargetPiece->Type == ChessPieceType::King)
+			{
+				GS->CheckMate(1);
+			}
+
 			WhitePiecesDead.Add(TargetPiece);
 			TargetPiece->SetPiecePosition(FVector(-1 * TileUnitSize, 8 * TileUnitSize, ZOffset + 15) - Bounds + (FVector::ForwardVector * DeadPieceSpacing * (WhitePiecesDead.Num() - 1)));
 		}
 		else
 		{
+			if(TargetPiece->Type == ChessPieceType::King)
+			{
+				GS->CheckMate(0);
+			}
+
 			BlackPiecesDead.Add(TargetPiece);
 			TargetPiece->SetPiecePosition(FVector(8 * TileUnitSize, -1 * TileUnitSize, ZOffset + 15) - Bounds + (FVector::BackwardVector * DeadPieceSpacing * (BlackPiecesDead.Num() - 1)));
 		}
@@ -228,6 +240,8 @@ bool ACGChessBoard::MovePieceTo(ACGChessPiece* PieceDragging, int32 XIndex, int3
 	ChessPiecesOnBoard[PreviousIndexPos.X][PreviousIndexPos.Y] = nullptr;
 
 	PositionChessPiece(XIndex, YIndex);
+
+	GS->SetIsWhiteTurn(!GS->GetIsWhiteTurn());
 
 	return true;
 }
@@ -274,6 +288,44 @@ void ACGChessBoard::RemoveHighlightTiles()
 	AvailableMoves.Empty();
 }
 
+void ACGChessBoard::ResetBoard()
+{
+	// Reset Fields	
+	CurrentPieceDragging = nullptr;
+	AvailableMoves.Empty();
+
+	// Remove pieces on board
+	const int32 NumTiles = GRID_SIZE * GRID_SIZE;
+	for(int32 TileIndex = 0; TileIndex < NumTiles; TileIndex++)
+	{
+		const int32 XPos = (TileIndex / GRID_SIZE); // Divide by dimension
+		const int32 YPos = (TileIndex % GRID_SIZE); // Modulo gives remainder
+
+		if(ChessPiecesOnBoard[XPos][YPos] != nullptr)
+		{
+			ChessPiecesOnBoard[XPos][YPos]->Destroy();
+			ChessPiecesOnBoard[XPos][YPos] = nullptr;
+		}
+	}
+
+	// Remove dead pieces
+	for(int32 i = 0; i < WhitePiecesDead.Num(); i++)
+	{
+		WhitePiecesDead[i]->Destroy();
+	}
+	WhitePiecesDead.Empty();
+	for(int32 i = 0; i < BlackPiecesDead.Num(); i++)
+	{
+		BlackPiecesDead[i]->Destroy();
+	}
+	BlackPiecesDead.Empty();
+
+	// Set pieces to start position
+	SpawnAllChessPieces();
+	PositionAllChessPieces(GRID_SIZE);
+	GS->SetIsWhiteTurn(true);
+}
+
 bool ACGChessBoard::ContainsValidMove(ACGBoardTile* Tile)
 {
 	FIntPoint TileIndex = GetTileIndex(GRID_SIZE, Tile);
@@ -308,8 +360,9 @@ void ACGChessBoard::HandleTileClicked(ACGBoardTile* Tile)
 
 	if(ChessPiecesOnBoard[TileIndexPos.X][TileIndexPos.Y])
 	{
-		// TODO - Is our turn?
-		if(true)
+		// Is White turn or Black turn
+		if((ChessPiecesOnBoard[TileIndexPos.X][TileIndexPos.Y]->Team == 0 && GS->GetIsWhiteTurn())
+			|| (ChessPiecesOnBoard[TileIndexPos.X][TileIndexPos.Y]->Team == 1 && !GS->GetIsWhiteTurn()))
 		{
 			CurrentPieceDragging = ChessPiecesOnBoard[TileIndexPos.X][TileIndexPos.Y];
 

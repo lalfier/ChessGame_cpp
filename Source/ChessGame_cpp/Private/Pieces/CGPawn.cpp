@@ -7,17 +7,10 @@
 ACGPawn::ACGPawn()
 {
 	// Structure to hold one-time initialization
-	struct FConstructorStatics
-	{
-		ConstructorHelpers::FObjectFinderOptional<UStaticMesh> ModelMesh;
-		FConstructorStatics()
-			: ModelMesh(TEXT("/Game/Meshes/Pieces/SM_Pawn.SM_Pawn"))
-		{}
-	};
-	static FConstructorStatics ConstructorStatics;
+	ConstructorHelpers::FObjectFinderOptional<UStaticMesh> ModelMesh(TEXT("/Game/Meshes/Pieces/SM_Pawn.SM_Pawn"));
 
 	// Set static mesh
-	PieceMesh->SetStaticMesh(ConstructorStatics.ModelMesh.Get());
+	PieceMesh->SetStaticMesh(ModelMesh.Get());
 }
 
 TArray<FIntPoint> ACGPawn::GetAvailableMoves(ACGChessPiece* PiecesOnBoard[GRID_SIZE][GRID_SIZE], int32 GridSize)

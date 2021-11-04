@@ -7,6 +7,6 @@ ACGPlayerController::ACGPlayerController()
 {
 	bShowMouseCursor = true;
 	bEnableClickEvents = true;
-	bEnableTouchEvents = true;
 	DefaultMouseCursor = EMouseCursor::Crosshairs;
+	bUpdateTrace = true;
 }

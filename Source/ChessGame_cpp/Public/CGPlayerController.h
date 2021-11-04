@@ -14,4 +14,7 @@ class CHESSGAME_CPP_API ACGPlayerController : public APlayerController
 	
 public:
 	ACGPlayerController();
+
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite)
+	bool bUpdateTrace;
 };

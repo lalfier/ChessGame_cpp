@@ -7,17 +7,10 @@
 ACGRook::ACGRook()
 {
 	// Structure to hold one-time initialization
-	struct FConstructorStatics
-	{
-		ConstructorHelpers::FObjectFinderOptional<UStaticMesh> ModelMesh;
-		FConstructorStatics()
-			: ModelMesh(TEXT("/Game/Meshes/Pieces/SM_Rook.SM_Rook"))
-		{}
-	};
-	static FConstructorStatics ConstructorStatics;
+	ConstructorHelpers::FObjectFinderOptional<UStaticMesh> ModelMesh(TEXT("/Game/Meshes/Pieces/SM_Rook.SM_Rook"));
 
 	// Set static mesh
-	PieceMesh->SetStaticMesh(ConstructorStatics.ModelMesh.Get());
+	PieceMesh->SetStaticMesh(ModelMesh.Get());
 }
 
 TArray<FIntPoint> ACGRook::GetAvailableMoves(ACGChessPiece* PiecesOnBoard[GRID_SIZE][GRID_SIZE], int32 GridSize)

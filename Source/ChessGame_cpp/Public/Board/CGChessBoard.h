@@ -12,6 +12,7 @@
 #endif
 
 class ACGBoardTile;
+class ACGGameState;
 
 UCLASS()
 class CHESSGAME_CPP_API ACGChessBoard : public AActor
@@ -25,6 +26,8 @@ class CHESSGAME_CPP_API ACGChessBoard : public AActor
 	/** StaticMesh component for the board */
 	UPROPERTY(Category = Grid, VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	class UStaticMeshComponent* BoardMesh;
+
+	ACGGameState* GS;
 
 public:
 	ACGChessBoard();
@@ -58,6 +61,9 @@ public:
 
 	UPROPERTY(Category = Pieces, EditAnywhere, BlueprintReadOnly)
 	TArray<UMaterial*> TeamMaterials;
+
+	UFUNCTION(Category = Board, BlueprintCallable)
+	void ResetBoard();
 
 	bool ContainsValidMove(ACGBoardTile* Tile);
 

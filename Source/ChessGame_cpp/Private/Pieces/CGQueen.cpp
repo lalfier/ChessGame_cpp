@@ -7,17 +7,10 @@
 ACGQueen::ACGQueen()
 {
 	// Structure to hold one-time initialization
-	struct FConstructorStatics
-	{
-		ConstructorHelpers::FObjectFinderOptional<UStaticMesh> ModelMesh;
-		FConstructorStatics()
-			: ModelMesh(TEXT("/Game/Meshes/Pieces/SM_Queen.SM_Queen"))
-		{}
-	};
-	static FConstructorStatics ConstructorStatics;
+	ConstructorHelpers::FObjectFinderOptional<UStaticMesh> ModelMesh(TEXT("/Game/Meshes/Pieces/SM_Queen.SM_Queen"));
 
 	// Set static mesh
-	PieceMesh->SetStaticMesh(ConstructorStatics.ModelMesh.Get());
+	PieceMesh->SetStaticMesh(ModelMesh.Get());
 }
 
 TArray<FIntPoint> ACGQueen::GetAvailableMoves(ACGChessPiece* PiecesOnBoard[GRID_SIZE][GRID_SIZE], int32 GridSize)

@@ -24,7 +24,7 @@ void ACGPlayerPawn::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
-	if(PC)
+	if(PC && PC->bUpdateTrace)
 	{
 		FVector Start, Dir, End;
 		PC->DeprojectMousePositionToWorld(Start, Dir);
