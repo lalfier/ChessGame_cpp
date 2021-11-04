@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/GameStateBase.h"
+#include "History/CGHistoryStruct.h"
 #include "CGGameState.generated.h"
 
 class UCGHud;
@@ -28,6 +29,8 @@ public:
 	bool GetIsWhiteTurn();
 
 	void CheckMate(int32 Team);
+
+	void DisplayHistory(FCGHistoryStruct History);
 
 private:
 	// Variable to hold the widget After Creating it.

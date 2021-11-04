@@ -49,3 +49,11 @@ void ACGGameState::CheckMate(int32 Team)
 		HUD->ShowVictoryMenu(Team);
 	}
 }
+
+void ACGGameState::DisplayHistory(FCGHistoryStruct History)
+{
+	if(HUD)
+	{
+		HUD->AddHistoryRow(History);
+	}
+}

@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
+#include "History/CGHistoryStruct.h"
 #include "CGHud.generated.h"
 
 /** HUD class */
@@ -18,4 +19,7 @@ public:
 
 	UFUNCTION(BlueprintImplementableEvent, Category = ChessHUD)
 	void ShowVictoryMenu(int32 VictoryTeam);
+
+	UFUNCTION(BlueprintImplementableEvent, Category = ChessHUD)
+	void AddHistoryRow(FCGHistoryStruct History);
 };

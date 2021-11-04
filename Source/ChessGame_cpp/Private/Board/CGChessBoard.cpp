@@ -234,12 +234,16 @@ bool ACGChessBoard::MovePieceTo(ACGChessPiece* PieceDragging, int32 XIndex, int3
 			TargetPiece->SetPiecePosition(FVector(8 * TileUnitSize, -1 * TileUnitSize, ZOffset + 15) - Bounds + (FVector::BackwardVector * DeadPieceSpacing * (BlackPiecesDead.Num() - 1)));
 		}
 		TargetPiece->SetPieceScale(FVector::OneVector * DeadPieceScale);
+
+		SetHistoryRow(TargetPiece, "Is Eaten");
 	}
 
 	ChessPiecesOnBoard[XIndex][YIndex] = PieceDragging;
 	ChessPiecesOnBoard[PreviousIndexPos.X][PreviousIndexPos.Y] = nullptr;
 
 	PositionChessPiece(XIndex, YIndex);
+
+	SetHistoryRow(PieceDragging, "Moved");
 
 	GS->SetIsWhiteTurn(!GS->GetIsWhiteTurn());
 
@@ -288,6 +292,17 @@ void ACGChessBoard::RemoveHighlightTiles()
 	AvailableMoves.Empty();
 }
 
+void ACGChessBoard::SetHistoryRow(ACGChessPiece* Piece, FString Action)
+{
+	FCGHistoryStruct HistoryRow;
+	HistoryRow.Team = Piece->Team;
+	HistoryRow.PieceType = Piece->Type;
+	HistoryRow.GridLocation = FIntPoint(Piece->CurrentX, Piece->CurrentY);
+	HistoryRow.ActionStr = Action;
+	GameHistory.Add(HistoryRow);
+	GS->DisplayHistory(HistoryRow);
+}
+
 void ACGChessBoard::ResetBoard()
 {
 	// Reset Fields	
@@ -319,6 +334,9 @@ void ACGChessBoard::ResetBoard()
 		BlackPiecesDead[i]->Destroy();
 	}
 	BlackPiecesDead.Empty();
+
+	// Reset History
+	GameHistory.Empty();
 
 	// Set pieces to start position
 	SpawnAllChessPieces();

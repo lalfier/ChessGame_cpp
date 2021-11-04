@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
 #include "Pieces/CGChessPiece.h"
+#include "History/CGHistoryStruct.h"
 #include "CGChessBoard.generated.h"
 
 #ifndef GRID_SIZE
@@ -85,6 +86,11 @@ private:
 	TArray<ACGChessPiece*> BlackPiecesDead;
 
 	TArray<FIntPoint> AvailableMoves;
+
+	UPROPERTY()
+	TArray<FCGHistoryStruct> GameHistory;
+
+	void SetHistoryRow(ACGChessPiece* Piece, FString Action);
 
 	/** Tile Generation */
 	void GenerateTiles(int32 GridSize, float TileSize);
