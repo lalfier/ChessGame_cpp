@@ -61,3 +61,43 @@ TArray<FIntPoint> ACGPawn::GetAvailableMoves(ACGChessPiece* PiecesOnBoard[GRID_S
 
 	return Moves;
 }
+
+ChessSpecialMove ACGPawn::GetSpecialMoves(ACGChessPiece* PiecesOnBoard[GRID_SIZE][GRID_SIZE], TArray<TArray<FIntPoint>>& MoveList, TArray<FIntPoint>& AvailableMoves)
+{
+	int32 Direction = (Team == 0) ? 1 : -1;
+
+	// En Passant
+	if(MoveList.Num() > 0)
+	{
+		TArray<FIntPoint> LastMove = MoveList[MoveList.Num() - 1];
+		// Check piece on end position of LastMove is a Pawn
+		if(PiecesOnBoard[LastMove[1].X][LastMove[1].Y]->Type == ChessPieceType::Pawn)
+		{
+			// Check if Pawn moved for 2 tiles
+			if(FMath::Abs(LastMove[0].X - LastMove[1].X) == 2)
+			{
+				// Check if the move was from other team
+				if(PiecesOnBoard[LastMove[1].X][LastMove[1].Y]->Team != Team)
+				{
+					// Check if both Pawns are on same X
+					if(LastMove[1].X == CurrentX)
+					{
+						// Check is enemy Pawn left or right from this Pawn
+						if(LastMove[1].Y == CurrentY - 1)
+						{
+							AvailableMoves.Add(FIntPoint(CurrentX + Direction, CurrentY - 1));
+							return ChessSpecialMove::EnPassant;
+						}
+						if(LastMove[1].Y == CurrentY + 1)
+						{
+							AvailableMoves.Add(FIntPoint(CurrentX + Direction, CurrentY + 1));
+							return ChessSpecialMove::EnPassant;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return ChessSpecialMove::Basic;
+}

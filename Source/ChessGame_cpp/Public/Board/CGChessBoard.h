@@ -35,8 +35,6 @@ public:
 
 	virtual void Tick(float DeltaSeconds) override;
 
-	FVector MousePosition;
-
 	/** Size of tile in units */
 	UPROPERTY(Category = Grid, EditAnywhere, BlueprintReadOnly)
 	float TileUnitSize;
@@ -63,6 +61,8 @@ public:
 	UPROPERTY(Category = Pieces, EditAnywhere, BlueprintReadOnly)
 	TArray<UMaterial*> TeamMaterials;
 
+	FVector MousePosition;
+
 	UFUNCTION(Category = Board, BlueprintCallable)
 	void ResetBoard();
 
@@ -87,6 +87,11 @@ private:
 
 	TArray<FIntPoint> AvailableMoves;
 
+	/** Special moves in chess */
+	TEnumAsByte<ChessSpecialMove> SpecialMove;
+
+	TArray<TArray<FIntPoint>> MoveList;
+
 	UPROPERTY()
 	TArray<FCGHistoryStruct> GameHistory;
 
@@ -106,6 +111,8 @@ private:
 	bool MovePieceTo(ACGChessPiece* PieceDragging, int32 XIndex, int32 YIndex);
 
 	bool ContainsValidMove(int32 XIndex, int32 YIndex);
+
+	void ProcessSpecialMove();
 
 	/** Get Tile center in Units */
 	FVector GetTileCenter(int32 X, int32 Y);
@@ -127,5 +134,11 @@ public:
 	FORCEINLINE class USceneComponent* GetDummyRoot() const
 	{
 		return DummyRoot;
+	}
+
+	/** Returns BoardMesh sub-object */
+	FORCEINLINE class UStaticMeshComponent* GetBoardMesh() const
+	{
+		return BoardMesh;
 	}
 };

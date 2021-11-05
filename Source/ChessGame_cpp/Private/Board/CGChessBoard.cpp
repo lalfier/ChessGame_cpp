@@ -162,7 +162,7 @@ ACGChessPiece* ACGChessBoard::SpawnChessPiece(ChessPieceType Type, int32 Team)
 	ACGChessPiece* CP = GetWorld()->SpawnActor<ACGChessPiece>(ChessPiecesToSpawn[Type-1], GetActorLocation(), FRotator(0, Team == 0 ? -90 : 90, 0));
 	CP->Type = Type;
 	CP->Team = Team;
-	CP->PieceMesh->SetMaterial(0, TeamMaterials[Team]);
+	CP->GetPieceMesh()->SetMaterial(0, TeamMaterials[Team]);
 	CP->SetFolderPath("ChessPieces");
 
 	return CP;
@@ -243,6 +243,9 @@ bool ACGChessBoard::MovePieceTo(ACGChessPiece* PieceDragging, int32 XIndex, int3
 
 	PositionChessPiece(XIndex, YIndex);
 
+	MoveList.Add(TArray<FIntPoint>{PreviousIndexPos, FIntPoint(XIndex, YIndex)});
+	ProcessSpecialMove();
+
 	SetHistoryRow(PieceDragging, "Moved");
 
 	GS->SetIsWhiteTurn(!GS->GetIsWhiteTurn());
@@ -308,6 +311,8 @@ void ACGChessBoard::ResetBoard()
 	// Reset Fields	
 	CurrentPieceDragging = nullptr;
 	AvailableMoves.Empty();
+	GameHistory.Empty();
+	MoveList.Empty();
 
 	// Remove pieces on board
 	const int32 NumTiles = GRID_SIZE * GRID_SIZE;
@@ -334,9 +339,6 @@ void ACGChessBoard::ResetBoard()
 		BlackPiecesDead[i]->Destroy();
 	}
 	BlackPiecesDead.Empty();
-
-	// Reset History
-	GameHistory.Empty();
 
 	// Set pieces to start position
 	SpawnAllChessPieces();
@@ -372,6 +374,39 @@ bool ACGChessBoard::ContainsValidMove(int32 XIndex, int32 YIndex)
 	return false;
 }
 
+void ACGChessBoard::ProcessSpecialMove()
+{
+	if(SpecialMove == ChessSpecialMove::EnPassant)
+	{
+		TArray<FIntPoint> NewMove = MoveList[MoveList.Num() - 1];
+		ACGChessPiece* MovingPawn = ChessPiecesOnBoard[NewMove[1].X][NewMove[1].Y];
+		TArray<FIntPoint> TargetPawnMove = MoveList[MoveList.Num() - 2];
+		ACGChessPiece* TargetPawn = ChessPiecesOnBoard[TargetPawnMove[1].X][TargetPawnMove[1].Y];
+
+		if(MovingPawn->CurrentY == TargetPawn->CurrentY)
+		{
+			if((MovingPawn->CurrentX == TargetPawn->CurrentX - 1) || (MovingPawn->CurrentX == TargetPawn->CurrentX + 1))
+			{
+				if(TargetPawn->Team == 0)
+				{
+					WhitePiecesDead.Add(TargetPawn);
+					TargetPawn->SetPiecePosition(FVector(-1 * TileUnitSize, 8 * TileUnitSize, ZOffset + 15) - Bounds + (FVector::ForwardVector * DeadPieceSpacing * (WhitePiecesDead.Num() - 1)));
+				}
+				else
+				{
+					BlackPiecesDead.Add(TargetPawn);
+					TargetPawn->SetPiecePosition(FVector(8 * TileUnitSize, -1 * TileUnitSize, ZOffset + 15) - Bounds + (FVector::BackwardVector * DeadPieceSpacing * (BlackPiecesDead.Num() - 1)));
+				}
+				TargetPawn->SetPieceScale(FVector::OneVector * DeadPieceScale);
+				ChessPiecesOnBoard[TargetPawn->CurrentX][TargetPawn->CurrentY] = nullptr;
+
+				SetHistoryRow(TargetPawn, "Is Eaten");
+				SetHistoryRow(MovingPawn, "En Passant");
+			}
+		}
+	}
+}
+
 void ACGChessBoard::HandleTileClicked(ACGBoardTile* Tile)
 {
 	FIntPoint TileIndexPos = GetTileIndex(GRID_SIZE, Tile);
@@ -384,8 +419,11 @@ void ACGChessBoard::HandleTileClicked(ACGBoardTile* Tile)
 		{
 			CurrentPieceDragging = ChessPiecesOnBoard[TileIndexPos.X][TileIndexPos.Y];
 
-			// Get list of available moves
+			// Get list of available basic moves
 			AvailableMoves = CurrentPieceDragging->GetAvailableMoves(ChessPiecesOnBoard, GRID_SIZE);
+			// Get list of special moves
+			SpecialMove = CurrentPieceDragging->GetSpecialMoves(ChessPiecesOnBoard, MoveList, AvailableMoves);
+			
 			// Highlight tiles
 			HighlightAvailableTiles();
 		}

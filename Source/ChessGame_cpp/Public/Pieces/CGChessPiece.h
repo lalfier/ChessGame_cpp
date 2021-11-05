@@ -22,6 +22,15 @@ enum ChessPieceType
 	King = 6
 };
 
+UENUM()
+enum ChessSpecialMove
+{
+	Basic = 0,
+	Promotion = 1,
+	Castling = 2,
+	EnPassant = 3
+};
+
 UCLASS()
 class CHESSGAME_CPP_API ACGChessPiece : public AActor
 {
@@ -32,17 +41,13 @@ public:
 
 	virtual void Tick(float DeltaSeconds) override;
 
-	/** StaticMesh component for the chess piece */
-	UPROPERTY(Category = Piece, VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	class UStaticMeshComponent* PieceMesh;
-
 	/** 0 - White, 1 - Black */
 	UPROPERTY(Category = Piece, EditAnywhere, BlueprintReadOnly)
 	int32 Team;
 
 	/** Type of piece */
 	UPROPERTY(Category = Piece, EditAnywhere, BlueprintReadOnly)
-	TEnumAsByte <ChessPieceType> Type;
+	TEnumAsByte<ChessPieceType> Type;
 
 	int32 CurrentX;
 
@@ -54,14 +59,33 @@ public:
 
 	virtual TArray<FIntPoint> GetAvailableMoves(ACGChessPiece* PiecesOnBoard[GRID_SIZE][GRID_SIZE], int32 GridSize);
 
+	virtual ChessSpecialMove GetSpecialMoves(ACGChessPiece* PiecesOnBoard[GRID_SIZE][GRID_SIZE], TArray<TArray<FIntPoint>>& MoveList, TArray<FIntPoint>& AvailableMoves);
+
 protected:
 	/** Dummy root component */
 	UPROPERTY(Category = Piece, VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	class USceneComponent* DummyRoot;
+
+	/** StaticMesh component for the chess piece */
+	UPROPERTY(Category = Piece, VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
+	class UStaticMeshComponent* PieceMesh;
 
 private:
 	FVector DesiredPosition;
 
 	FVector DefaultScale;
 	FVector DesiredScale;
+
+public:
+	/** Returns DummyRoot sub-object */
+	FORCEINLINE class USceneComponent* GetDummyRoot() const
+	{
+		return DummyRoot;
+	}
+
+	/** Returns PieceMesh sub-object */
+	FORCEINLINE class UStaticMeshComponent* GetPieceMesh() const
+	{
+		return PieceMesh;
+	}
 };

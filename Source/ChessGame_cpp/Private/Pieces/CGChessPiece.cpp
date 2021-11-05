@@ -54,3 +54,8 @@ TArray<FIntPoint> ACGChessPiece::GetAvailableMoves(ACGChessPiece* PiecesOnBoard[
 	TArray<FIntPoint> NoMoves;
 	return NoMoves;
 }
+
+ChessSpecialMove ACGChessPiece::GetSpecialMoves(ACGChessPiece* PiecesOnBoard[GRID_SIZE][GRID_SIZE], TArray<TArray<FIntPoint>>& MoveList, TArray<FIntPoint>& AvailableMoves)
+{
+	return ChessSpecialMove::Basic;
+}

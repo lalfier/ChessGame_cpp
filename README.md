@@ -1,15 +1,17 @@
-# Local Multiplayer  Chess Game
+# Local Multiplayer Chess Game
 
-Project for Local Multiplayer  Chess Game built in Unreal Engine 4 with c++.
+Project for Local Multiplayer Chess Game built in Unreal Engine 4 with C++.
 
 ## Features
 
 	- Chess piece moving, eating
 	- Players take turns
-	- Win conditions
-	- Allowable moves
-	- End Screen
+	- Win condition
+	- Allowable moves with highlight
+	- End Screen, Pause Menu
 	- Reset Game
+	- History of moves on HUD
+	- Special Move En Passant
 	
 **Unreal Engine 4 Version: 4.27**
 
