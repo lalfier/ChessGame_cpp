@@ -242,11 +242,10 @@ bool ACGChessBoard::MovePieceTo(ACGChessPiece* PieceDragging, int32 XIndex, int3
 	ChessPiecesOnBoard[PreviousIndexPos.X][PreviousIndexPos.Y] = nullptr;
 
 	PositionChessPiece(XIndex, YIndex);
+	SetHistoryRow(PieceDragging, "Moved");
 
 	MoveList.Add(TArray<FIntPoint>{PreviousIndexPos, FIntPoint(XIndex, YIndex)});
 	ProcessSpecialMove();
-
-	SetHistoryRow(PieceDragging, "Moved");
 
 	GS->SetIsWhiteTurn(!GS->GetIsWhiteTurn());
 
@@ -376,9 +375,10 @@ bool ACGChessBoard::ContainsValidMove(int32 XIndex, int32 YIndex)
 
 void ACGChessBoard::ProcessSpecialMove()
 {
+	TArray<FIntPoint> NewMove = MoveList[MoveList.Num() - 1];
+
 	if(SpecialMove == ChessSpecialMove::EnPassant)
 	{
-		TArray<FIntPoint> NewMove = MoveList[MoveList.Num() - 1];
 		ACGChessPiece* MovingPawn = ChessPiecesOnBoard[NewMove[1].X][NewMove[1].Y];
 		TArray<FIntPoint> TargetPawnMove = MoveList[MoveList.Num() - 2];
 		ACGChessPiece* TargetPawn = ChessPiecesOnBoard[TargetPawnMove[1].X][TargetPawnMove[1].Y];
@@ -406,17 +406,34 @@ void ACGChessBoard::ProcessSpecialMove()
 		}
 	}
 
+	if(SpecialMove == ChessSpecialMove::Promotion)
+	{
+		ACGChessPiece* MovingPawn = ChessPiecesOnBoard[NewMove[1].X][NewMove[1].Y];
+
+		// Swap Pawn with Queen
+		if((MovingPawn->Team == 0 && NewMove[1].X == 7) || (MovingPawn->Team == 1 && NewMove[1].X == 0))
+		{
+			ACGChessPiece* NewQueen = SpawnChessPiece(ChessPieceType::Queen, MovingPawn->Team);
+			NewQueen->SetActorLocation(MovingPawn->GetActorLocation());
+			ChessPiecesOnBoard[NewMove[1].X][NewMove[1].Y]->Destroy();
+			ChessPiecesOnBoard[NewMove[1].X][NewMove[1].Y] = NewQueen;
+			PositionChessPiece(NewMove[1].X, NewMove[1].Y);
+
+			SetHistoryRow(MovingPawn, "Queening");
+		}
+	}
+
 	if(SpecialMove == ChessSpecialMove::Castling)
 	{
-		TArray<FIntPoint> NewMove = MoveList[MoveList.Num() - 1];
-		ACGChessPiece* MovingRook = nullptr;
+		ACGChessPiece* MovingKing = ChessPiecesOnBoard[NewMove[1].X][NewMove[1].Y];		
 		int32 StartingX = (NewMove[1].X == 0) ? 0 : 7;
+		ACGChessPiece* TargetRook = nullptr;
 
 		// Move Left Rook
 		if(NewMove[1].Y == 2 && (StartingX == 0 || StartingX == 7))
 		{			
-			MovingRook = ChessPiecesOnBoard[StartingX][0];
-			ChessPiecesOnBoard[StartingX][3] = MovingRook;
+			TargetRook = ChessPiecesOnBoard[StartingX][0];
+			ChessPiecesOnBoard[StartingX][3] = TargetRook;
 			PositionChessPiece(StartingX, 3);
 			ChessPiecesOnBoard[StartingX][0] = nullptr;
 		}
@@ -424,16 +441,16 @@ void ACGChessBoard::ProcessSpecialMove()
 		// Move Right Rook
 		if(NewMove[1].Y == 6 && (StartingX == 0 || StartingX == 7))
 		{
-			MovingRook = ChessPiecesOnBoard[StartingX][7];
-			ChessPiecesOnBoard[StartingX][5] = MovingRook;
+			TargetRook = ChessPiecesOnBoard[StartingX][7];
+			ChessPiecesOnBoard[StartingX][5] = TargetRook;
 			PositionChessPiece(StartingX, 5);
 			ChessPiecesOnBoard[StartingX][7] = nullptr;
 		}
 
-		if(MovingRook)
+		if(TargetRook)
 		{
-			SetHistoryRow(MovingRook, "Moved");
-			SetHistoryRow(MovingRook, "Castling");
+			SetHistoryRow(TargetRook, "Moved");
+			SetHistoryRow(MovingKing, "Castling");
 		}
 	}
 }

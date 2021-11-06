@@ -66,6 +66,12 @@ ChessSpecialMove ACGPawn::GetSpecialMoves(ACGChessPiece* PiecesOnBoard[GRID_SIZE
 {
 	int32 Direction = (Team == 0) ? 1 : -1;
 
+	// Promotion (Queening)
+	if((Team == 0 && CurrentX == 6) || (Team == 1 && CurrentX == 1))
+	{
+		return ChessSpecialMove::Promotion;
+	}
+
 	// En Passant
 	if(MoveList.Num() > 0)
 	{
