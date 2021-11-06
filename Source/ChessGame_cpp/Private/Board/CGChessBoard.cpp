@@ -405,6 +405,37 @@ void ACGChessBoard::ProcessSpecialMove()
 			}
 		}
 	}
+
+	if(SpecialMove == ChessSpecialMove::Castling)
+	{
+		TArray<FIntPoint> NewMove = MoveList[MoveList.Num() - 1];
+		ACGChessPiece* MovingRook = nullptr;
+		int32 StartingX = (NewMove[1].X == 0) ? 0 : 7;
+
+		// Move Left Rook
+		if(NewMove[1].Y == 2 && (StartingX == 0 || StartingX == 7))
+		{			
+			MovingRook = ChessPiecesOnBoard[StartingX][0];
+			ChessPiecesOnBoard[StartingX][3] = MovingRook;
+			PositionChessPiece(StartingX, 3);
+			ChessPiecesOnBoard[StartingX][0] = nullptr;
+		}
+
+		// Move Right Rook
+		if(NewMove[1].Y == 6 && (StartingX == 0 || StartingX == 7))
+		{
+			MovingRook = ChessPiecesOnBoard[StartingX][7];
+			ChessPiecesOnBoard[StartingX][5] = MovingRook;
+			PositionChessPiece(StartingX, 5);
+			ChessPiecesOnBoard[StartingX][7] = nullptr;
+		}
+
+		if(MovingRook)
+		{
+			SetHistoryRow(MovingRook, "Moved");
+			SetHistoryRow(MovingRook, "Castling");
+		}
+	}
 }
 
 void ACGChessBoard::HandleTileClicked(ACGBoardTile* Tile)

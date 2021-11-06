@@ -147,3 +147,62 @@ TArray<FIntPoint> ACGKing::GetAvailableMoves(ACGChessPiece* PiecesOnBoard[GRID_S
 
 	return Moves;
 }
+
+ChessSpecialMove ACGKing::GetSpecialMoves(ACGChessPiece* PiecesOnBoard[GRID_SIZE][GRID_SIZE], TArray<TArray<FIntPoint>>& MoveList, TArray<FIntPoint>& AvailableMoves)
+{
+	ChessSpecialMove SpecialMove = ChessSpecialMove::Basic;
+
+	int32 StartingX = (Team == 0) ? 0 : 7;
+	TArray<FIntPoint>* KingMove = MoveList.FindByPredicate([&](TArray<FIntPoint> m) {return m[0].X == StartingX && m[0].Y == 4;});
+	TArray<FIntPoint>* LeftRookMove = MoveList.FindByPredicate([&](TArray<FIntPoint> m) {return m[0].X == StartingX && m[0].Y == 0;});
+	TArray<FIntPoint>* RightRookMove = MoveList.FindByPredicate([&](TArray<FIntPoint> m) {return m[0].X == StartingX && m[0].Y == 7;});
+
+	// King has not been moved before
+	if(KingMove == nullptr && CurrentY == 4)
+	{
+		// Left Rook has not been moved before
+		if(LeftRookMove == nullptr)
+		{
+			if(PiecesOnBoard[StartingX][0]->Type == ChessPieceType::Rook)
+			{
+				if(PiecesOnBoard[StartingX][0]->Team == Team)
+				{
+					// Check are all tiles empty to the King
+					if(PiecesOnBoard[StartingX][1] == nullptr)
+					{
+						if(PiecesOnBoard[StartingX][2] == nullptr)
+						{
+							if(PiecesOnBoard[StartingX][3] == nullptr)
+							{
+								AvailableMoves.Add(FIntPoint(StartingX, 2));
+								SpecialMove = ChessSpecialMove::Castling;
+							}
+						}
+					}
+				}
+			}
+		}
+
+		// Right Rook has not been moved before
+		if(RightRookMove == nullptr)
+		{
+			if(PiecesOnBoard[StartingX][7]->Type == ChessPieceType::Rook)
+			{
+				if(PiecesOnBoard[StartingX][7]->Team == Team)
+				{
+					// Check are all tiles empty to the King
+					if(PiecesOnBoard[StartingX][6] == nullptr)
+					{
+						if(PiecesOnBoard[StartingX][5] == nullptr)
+						{
+							AvailableMoves.Add(FIntPoint(StartingX, 6));
+							SpecialMove = ChessSpecialMove::Castling;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return SpecialMove;
+}

@@ -12,6 +12,7 @@ Project for Local Multiplayer Chess Game built in Unreal Engine 4 with C++.
 	- Reset Game
 	- History of moves on HUD
 	- Special Move En Passant
+	- Special Move Castling
 	
 **Unreal Engine 4 Version: 4.27**
 
