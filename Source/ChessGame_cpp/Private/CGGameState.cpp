@@ -42,7 +42,7 @@ bool ACGGameState::GetIsWhiteTurn()
 	return bWhiteTurn;
 }
 
-void ACGGameState::CheckMate(int32 Team)
+void ACGGameState::Checkmate(int32 Team)
 {
 	if(HUD)
 	{

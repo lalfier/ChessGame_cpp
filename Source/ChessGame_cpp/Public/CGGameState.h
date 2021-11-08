@@ -28,7 +28,7 @@ public:
 
 	bool GetIsWhiteTurn();
 
-	void CheckMate(int32 Team);
+	void Checkmate(int32 Team);
 
 	void DisplayHistory(FCGHistoryStruct History);
 

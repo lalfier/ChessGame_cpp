@@ -110,9 +110,17 @@ private:
 
 	bool MovePieceTo(ACGChessPiece* PieceDragging, int32 XIndex, int32 YIndex);
 
-	bool ContainsValidMove(int32 XIndex, int32 YIndex);
+	void EatChessPiece(ACGChessPiece* TargetPiece);
+
+	bool ContainsValidMove(TArray<FIntPoint>& Moves, int32 XIndex, int32 YIndex);
 
 	void ProcessSpecialMove();
+
+	void PreventCheckmate();
+
+	void SimulateMoveForPieceDragging(ACGChessPiece* Dragging, TArray<TArray<FIntPoint>>& AllMoves, TArray<FIntPoint>& AllowableMoves, ACGChessPiece* King);
+
+	bool IsCheckmate();
 
 	/** Get Tile center in Units */
 	FVector GetTileCenter(int32 X, int32 Y);
