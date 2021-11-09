@@ -215,14 +215,14 @@ bool ACGChessBoard::MovePieceTo(ACGChessPiece* PieceDragging, int32 XIndex, int3
 		// Enemy team
 		EatChessPiece(TargetPiece);
 
-		SetHistoryRow(TargetPiece, "Is Eaten");
+		SetHistoryRow(TargetPiece, "Is Eaten", FIntPoint(XIndex, YIndex));
 	}
 
 	ChessPiecesOnBoard[XIndex][YIndex] = PieceDragging;
 	ChessPiecesOnBoard[PreviousIndexPos.X][PreviousIndexPos.Y] = nullptr;
 
 	PositionChessPiece(XIndex, YIndex);
-	SetHistoryRow(PieceDragging, "Moved");
+	SetHistoryRow(PieceDragging, "Moved", PreviousIndexPos);
 
 	MoveList.Add(TArray<FIntPoint>{PreviousIndexPos, FIntPoint(XIndex, YIndex)});
 	ProcessSpecialMove();
@@ -294,13 +294,14 @@ void ACGChessBoard::RemoveHighlightTiles()
 	AvailableMoves.Empty();
 }
 
-void ACGChessBoard::SetHistoryRow(ACGChessPiece* Piece, FString Action)
+void ACGChessBoard::SetHistoryRow(ACGChessPiece* Piece, FString Action, FIntPoint PrevPosition)
 {
 	FCGHistoryStruct HistoryRow;
 	HistoryRow.Team = Piece->Team;
 	HistoryRow.PieceType = Piece->Type;
 	HistoryRow.GridLocation = FIntPoint(Piece->CurrentX, Piece->CurrentY);
 	HistoryRow.ActionStr = Action;
+	HistoryRow.PrevLocation = PrevPosition;
 	GameHistory.Add(HistoryRow);
 	GS->DisplayHistory(HistoryRow);
 }
@@ -343,6 +344,129 @@ void ACGChessBoard::ResetBoard()
 	SpawnAllChessPieces();
 	PositionAllChessPieces(GRID_SIZE);
 	GS->SetIsWhiteTurn(true);
+}
+
+int32 ACGChessBoard::UndoMove()
+{
+	int32 UndoMoves = 0;
+
+	if(GameHistory.Num() > 0)
+	{
+		FCGHistoryStruct LastHistory = GameHistory[GameHistory.Num() - 1];
+
+		if(LastHistory.ActionStr.Equals("Moved"))
+		{
+			ACGChessPiece* MovedPiece = ChessPiecesOnBoard[LastHistory.GridLocation.X][LastHistory.GridLocation.Y];
+			ChessPiecesOnBoard[LastHistory.GridLocation.X][LastHistory.GridLocation.Y] = nullptr;
+
+			if(GameHistory.Num() > 1)
+			{
+				FCGHistoryStruct EatenHistory = GameHistory[GameHistory.Num() - 2];
+				if(EatenHistory.ActionStr.Equals("Is Eaten"))
+				{
+					ACGChessPiece* EatenPiece;
+					if(EatenHistory.Team == 0)
+					{
+						EatenPiece = WhitePiecesDead[WhitePiecesDead.Num() - 1];
+						WhitePiecesDead.Remove(EatenPiece);
+					}
+					else
+					{
+						EatenPiece = BlackPiecesDead[BlackPiecesDead.Num() - 1];
+						BlackPiecesDead.Remove(EatenPiece);
+					}
+					ChessPiecesOnBoard[EatenHistory.PrevLocation.X][EatenHistory.PrevLocation.Y] = EatenPiece;
+					EatenPiece->SetPieceScale(FVector::OneVector * EatenPiece->GetDefaultScale());
+					PositionChessPiece(EatenHistory.PrevLocation.X, EatenHistory.PrevLocation.Y);
+					GameHistory.RemoveAt(GameHistory.Num() - 2);
+					UndoMoves++;
+				}
+			}
+
+			ChessPiecesOnBoard[LastHistory.PrevLocation.X][LastHistory.PrevLocation.Y] = MovedPiece;			
+			PositionChessPiece(LastHistory.PrevLocation.X, LastHistory.PrevLocation.Y);
+			GameHistory.RemoveAt(GameHistory.Num() - 1);
+			MoveList.RemoveAt(MoveList.Num() - 1);
+			GS->SetIsWhiteTurn(!GS->GetIsWhiteTurn());
+			UndoMoves++;
+		}
+		else
+		{
+			if(LastHistory.ActionStr.Equals("En Passant"))
+			{
+				GameHistory.RemoveAt(GameHistory.Num() - 1);
+				UndoMoves++;
+
+				LastHistory = GameHistory[GameHistory.Num() - 1];
+				ACGChessPiece* EatenPiece;
+				if(LastHistory.Team == 0)
+				{
+					EatenPiece = WhitePiecesDead[WhitePiecesDead.Num() - 1];
+					WhitePiecesDead.Remove(EatenPiece);
+				}
+				else
+				{
+					EatenPiece = BlackPiecesDead[BlackPiecesDead.Num() - 1];
+					BlackPiecesDead.Remove(EatenPiece);
+				}
+				ChessPiecesOnBoard[LastHistory.PrevLocation.X][LastHistory.PrevLocation.Y] = EatenPiece;
+				EatenPiece->SetPieceScale(FVector::OneVector * EatenPiece->GetDefaultScale());
+				PositionChessPiece(LastHistory.PrevLocation.X, LastHistory.PrevLocation.Y);
+				GameHistory.RemoveAt(GameHistory.Num() - 1);
+				UndoMoves++;
+
+				LastHistory = GameHistory[GameHistory.Num() - 1];
+				ACGChessPiece* MovedPiece = ChessPiecesOnBoard[LastHistory.GridLocation.X][LastHistory.GridLocation.Y];
+				ChessPiecesOnBoard[LastHistory.GridLocation.X][LastHistory.GridLocation.Y] = nullptr;
+				ChessPiecesOnBoard[LastHistory.PrevLocation.X][LastHistory.PrevLocation.Y] = MovedPiece;
+				PositionChessPiece(LastHistory.PrevLocation.X, LastHistory.PrevLocation.Y);
+				GameHistory.RemoveAt(GameHistory.Num() - 1);
+				MoveList.RemoveAt(MoveList.Num() - 1);
+				GS->SetIsWhiteTurn(!GS->GetIsWhiteTurn());
+				UndoMoves++;
+			}
+			else if(LastHistory.ActionStr.Equals("Queening"))
+			{
+				ACGChessPiece* NewPawn = SpawnChessPiece(ChessPieceType::Pawn, LastHistory.Team);
+				NewPawn->SetActorLocation(ChessPiecesOnBoard[LastHistory.GridLocation.X][LastHistory.GridLocation.Y]->GetActorLocation());
+				ChessPiecesOnBoard[LastHistory.GridLocation.X][LastHistory.GridLocation.Y]->Destroy();
+				ChessPiecesOnBoard[LastHistory.GridLocation.X][LastHistory.GridLocation.Y] = NewPawn;
+				PositionChessPiece(LastHistory.GridLocation.X, LastHistory.GridLocation.Y);
+				GameHistory.RemoveAt(GameHistory.Num() - 1);
+				UndoMoves++;
+
+				LastHistory = GameHistory[GameHistory.Num() - 1];
+				ChessPiecesOnBoard[LastHistory.GridLocation.X][LastHistory.GridLocation.Y] = nullptr;
+				ChessPiecesOnBoard[LastHistory.PrevLocation.X][LastHistory.PrevLocation.Y] = NewPawn;
+				PositionChessPiece(LastHistory.PrevLocation.X, LastHistory.PrevLocation.Y);
+				GameHistory.RemoveAt(GameHistory.Num() - 1);
+				MoveList.RemoveAt(MoveList.Num() - 1);
+				GS->SetIsWhiteTurn(!GS->GetIsWhiteTurn());
+				UndoMoves++;
+			}
+			else if(LastHistory.ActionStr.Equals("Castling"))
+			{
+				GameHistory.RemoveAt(GameHistory.Num() - 1);
+				UndoMoves++;
+
+				for(int32 i = 0; i < 2; i++)
+				{
+					LastHistory = GameHistory[GameHistory.Num() - 1];
+					ACGChessPiece* MovedPiece = ChessPiecesOnBoard[LastHistory.GridLocation.X][LastHistory.GridLocation.Y];
+					ChessPiecesOnBoard[LastHistory.GridLocation.X][LastHistory.GridLocation.Y] = nullptr;
+					ChessPiecesOnBoard[LastHistory.PrevLocation.X][LastHistory.PrevLocation.Y] = MovedPiece;
+					PositionChessPiece(LastHistory.PrevLocation.X, LastHistory.PrevLocation.Y);
+					GameHistory.RemoveAt(GameHistory.Num() - 1);
+					UndoMoves++;
+				}
+
+				MoveList.RemoveAt(MoveList.Num() - 1);
+				GS->SetIsWhiteTurn(!GS->GetIsWhiteTurn());
+			}
+		}
+	}
+
+	return UndoMoves;
 }
 
 bool ACGChessBoard::ContainsValidMove(ACGBoardTile* Tile)
@@ -390,8 +514,8 @@ void ACGChessBoard::ProcessSpecialMove()
 				EatChessPiece(TargetPawn);
 				ChessPiecesOnBoard[TargetPawn->CurrentX][TargetPawn->CurrentY] = nullptr;
 
-				SetHistoryRow(TargetPawn, "Is Eaten");
-				SetHistoryRow(MovingPawn, "En Passant");
+				SetHistoryRow(TargetPawn, "Is Eaten", FIntPoint(TargetPawnMove[1].X, TargetPawnMove[1].Y));
+				SetHistoryRow(MovingPawn, "En Passant", FIntPoint(NewMove[1].X, NewMove[1].Y));
 			}
 		}
 	}
@@ -409,7 +533,7 @@ void ACGChessBoard::ProcessSpecialMove()
 			ChessPiecesOnBoard[NewMove[1].X][NewMove[1].Y] = NewQueen;
 			PositionChessPiece(NewMove[1].X, NewMove[1].Y);
 
-			SetHistoryRow(MovingPawn, "Queening");
+			SetHistoryRow(MovingPawn, "Queening", FIntPoint(NewMove[1].X, NewMove[1].Y));
 		}
 	}
 
@@ -426,6 +550,7 @@ void ACGChessBoard::ProcessSpecialMove()
 			ChessPiecesOnBoard[StartingX][3] = TargetRook;
 			PositionChessPiece(StartingX, 3);
 			ChessPiecesOnBoard[StartingX][0] = nullptr;
+			SetHistoryRow(TargetRook, "Moved", FIntPoint(StartingX, 0));
 		}
 
 		// Move Right Rook
@@ -435,12 +560,12 @@ void ACGChessBoard::ProcessSpecialMove()
 			ChessPiecesOnBoard[StartingX][5] = TargetRook;
 			PositionChessPiece(StartingX, 5);
 			ChessPiecesOnBoard[StartingX][7] = nullptr;
+			SetHistoryRow(TargetRook, "Moved", FIntPoint(StartingX, 7));
 		}
 
 		if(TargetRook)
-		{
-			SetHistoryRow(TargetRook, "Moved");
-			SetHistoryRow(MovingKing, "Castling");
+		{			
+			SetHistoryRow(MovingKing, "Castling", FIntPoint(NewMove[1].X, NewMove[1].Y));
 		}
 	}
 }

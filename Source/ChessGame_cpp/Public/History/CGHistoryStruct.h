@@ -22,4 +22,7 @@ public:
 
 	UPROPERTY(BlueprintReadWrite)
 	FString ActionStr;
+
+	UPROPERTY(BlueprintReadWrite)
+	FIntPoint PrevLocation;
 };

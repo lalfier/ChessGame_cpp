@@ -66,6 +66,9 @@ public:
 	UFUNCTION(Category = Board, BlueprintCallable)
 	void ResetBoard();
 
+	UFUNCTION(Category = Board, BlueprintCallable)
+	int32 UndoMove();
+
 	bool ContainsValidMove(ACGBoardTile* Tile);
 
 	void HandleTileClicked(ACGBoardTile* Tile);
@@ -95,7 +98,7 @@ private:
 	UPROPERTY()
 	TArray<FCGHistoryStruct> GameHistory;
 
-	void SetHistoryRow(ACGChessPiece* Piece, FString Action);
+	void SetHistoryRow(ACGChessPiece* Piece, FString Action, FIntPoint PrevPosition);
 
 	/** Tile Generation */
 	void GenerateTiles(int32 GridSize, float TileSize);

@@ -88,4 +88,10 @@ public:
 	{
 		return PieceMesh;
 	}
+
+	/** Returns Default object scale */
+	FORCEINLINE FVector GetDefaultScale() const
+	{
+		return DefaultScale;
+	}
 };
