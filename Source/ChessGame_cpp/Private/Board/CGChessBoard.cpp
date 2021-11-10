@@ -10,6 +10,8 @@
 #include "Pieces/CGQueen.h"
 #include "Pieces/CGKing.h"
 #include "CGGameState.h"
+#include "Save/CGSaveGame.h"
+#include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
 
 // Sets default values
@@ -61,6 +63,9 @@ ACGChessBoard::ACGChessBoard()
 	ChessPiecesToSpawn.Add(ACGBishop::StaticClass());
 	ChessPiecesToSpawn.Add(ACGQueen::StaticClass());
 	ChessPiecesToSpawn.Add(ACGKing::StaticClass());
+
+	// Set save game name
+	SaveGameSlotName = "CG_SaveGame";
 }
 
 void ACGChessBoard::BeginPlay()
@@ -193,7 +198,7 @@ void ACGChessBoard::PositionChessPiece(int32 X, int32 Y, bool bForce /*= false*/
 	ChessPiecesOnBoard[X][Y]->SetPiecePosition(GetTileCenter(X, Y), bForce);
 }
 
-bool ACGChessBoard::MovePieceTo(ACGChessPiece* PieceDragging, int32 XIndex, int32 YIndex)
+bool ACGChessBoard::MovePieceTo(ACGChessPiece* PieceDragging, int32 XIndex, int32 YIndex, bool bForce /*= false*/)
 {
 	if(!ContainsValidMove(AvailableMoves, XIndex, YIndex))
 	{
@@ -213,7 +218,7 @@ bool ACGChessBoard::MovePieceTo(ACGChessPiece* PieceDragging, int32 XIndex, int3
 		}
 
 		// Enemy team
-		EatChessPiece(TargetPiece);
+		EatChessPiece(TargetPiece, bForce);
 
 		SetHistoryRow(TargetPiece, "Is Eaten", FIntPoint(XIndex, YIndex));
 	}
@@ -221,11 +226,11 @@ bool ACGChessBoard::MovePieceTo(ACGChessPiece* PieceDragging, int32 XIndex, int3
 	ChessPiecesOnBoard[XIndex][YIndex] = PieceDragging;
 	ChessPiecesOnBoard[PreviousIndexPos.X][PreviousIndexPos.Y] = nullptr;
 
-	PositionChessPiece(XIndex, YIndex);
+	PositionChessPiece(XIndex, YIndex, bForce);
 	SetHistoryRow(PieceDragging, "Moved", PreviousIndexPos);
 
 	MoveList.Add(TArray<FIntPoint>{PreviousIndexPos, FIntPoint(XIndex, YIndex)});
-	ProcessSpecialMove();
+	ProcessSpecialMove(bForce);
 
 	GS->SetIsWhiteTurn(!GS->GetIsWhiteTurn());
 
@@ -237,19 +242,19 @@ bool ACGChessBoard::MovePieceTo(ACGChessPiece* PieceDragging, int32 XIndex, int3
 	return true;
 }
 
-void ACGChessBoard::EatChessPiece(ACGChessPiece* TargetPiece)
+void ACGChessBoard::EatChessPiece(ACGChessPiece* TargetPiece, bool bForce /*= false*/)
 {
 	if(TargetPiece->Team == 0)
 	{
 		WhitePiecesDead.Add(TargetPiece);
-		TargetPiece->SetPiecePosition(FVector(-1 * TileUnitSize, 8 * TileUnitSize, ZOffset + 15) - Bounds + (FVector::ForwardVector * DeadPieceSpacing * (WhitePiecesDead.Num() - 1)));
+		TargetPiece->SetPiecePosition(FVector(-1 * TileUnitSize, 8 * TileUnitSize, ZOffset + 15) - Bounds + (FVector::ForwardVector * DeadPieceSpacing * (WhitePiecesDead.Num() - 1)), bForce);
 	}
 	else
 	{
 		BlackPiecesDead.Add(TargetPiece);
-		TargetPiece->SetPiecePosition(FVector(8 * TileUnitSize, -1 * TileUnitSize, ZOffset + 15) - Bounds + (FVector::BackwardVector * DeadPieceSpacing * (BlackPiecesDead.Num() - 1)));
+		TargetPiece->SetPiecePosition(FVector(8 * TileUnitSize, -1 * TileUnitSize, ZOffset + 15) - Bounds + (FVector::BackwardVector * DeadPieceSpacing * (BlackPiecesDead.Num() - 1)), bForce);
 	}
-	TargetPiece->SetPieceScale(FVector::OneVector * DeadPieceScale);
+	TargetPiece->SetPieceScale(FVector::OneVector * DeadPieceScale, bForce);
 }
 
 FVector ACGChessBoard::GetTileCenter(int32 X, int32 Y)
@@ -469,6 +474,62 @@ int32 ACGChessBoard::UndoMove()
 	return UndoMoves;
 }
 
+void ACGChessBoard::LoadGame()
+{
+	USaveGame* LoadedGame = UGameplayStatics::LoadGameFromSlot(SaveGameSlotName, 0);
+	SaveGameObject = Cast<UCGSaveGame>(LoadedGame);
+	GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Yellow, TEXT("Trying to load a saved game."));
+
+	if(SaveGameObject)
+	{
+		// Reset history HUD, board and Load variables
+		GS->ResetHistoryHUD();
+		ResetBoard();
+		for(int32 i = 0; i < SaveGameObject->SavedMoveList.Num(); i++)
+		{
+			FCGSaveStruct SaveStruct = SaveGameObject->SavedMoveList[i];
+			AvailableMoves = ChessPiecesOnBoard[SaveStruct.Moves[0].X][SaveStruct.Moves[0].Y]->GetAvailableMoves(ChessPiecesOnBoard, GRID_SIZE);
+			SpecialMove = ChessPiecesOnBoard[SaveStruct.Moves[0].X][SaveStruct.Moves[0].Y]->GetSpecialMoves(ChessPiecesOnBoard, MoveList, AvailableMoves);
+			MovePieceTo(ChessPiecesOnBoard[SaveStruct.Moves[0].X][SaveStruct.Moves[0].Y], SaveStruct.Moves[1].X, SaveStruct.Moves[1].Y, true);
+		}
+		AvailableMoves.Empty();
+
+		GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Green, TEXT("Saved game found. Loaded."));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, TEXT("No saved games found."));
+	}
+}
+
+void ACGChessBoard::SaveGame()
+{
+	GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Yellow, TEXT("Saving game..."));
+	SaveGameObject = Cast<UCGSaveGame>(UGameplayStatics::CreateSaveGameObject(UCGSaveGame::StaticClass()));
+
+	// Save variables
+	for(int32 i = 0; i < MoveList.Num(); i++)
+	{
+		FCGSaveStruct SaveStruct;
+		TArray<FIntPoint> MovesPlayed = MoveList[i];
+		for(int32 j = 0; j < MovesPlayed.Num(); j++)
+		{
+			SaveStruct.Moves.Add(MovesPlayed[j]);
+		}
+		SaveGameObject->SavedMoveList.Add(SaveStruct);
+	}
+
+	const bool IsSaved = UGameplayStatics::SaveGameToSlot(SaveGameObject, SaveGameSlotName, 0);
+	if(IsSaved)
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Green, TEXT("Game saved."));
+	}
+	else
+	{
+		GEngine->AddOnScreenDebugMessage(-1, 3.0f, FColor::Red, TEXT("Cannot save the game."));
+	}
+}
+
 bool ACGChessBoard::ContainsValidMove(ACGBoardTile* Tile)
 {
 	FIntPoint TileIndex = GetTileIndex(GRID_SIZE, Tile);
@@ -497,7 +558,7 @@ bool ACGChessBoard::ContainsValidMove(TArray<FIntPoint>& Moves, int32 XIndex, in
 	return false;
 }
 
-void ACGChessBoard::ProcessSpecialMove()
+void ACGChessBoard::ProcessSpecialMove(bool bForce /*= false*/)
 {
 	TArray<FIntPoint> NewMove = MoveList[MoveList.Num() - 1];
 
@@ -511,7 +572,7 @@ void ACGChessBoard::ProcessSpecialMove()
 		{
 			if((MovingPawn->CurrentX == TargetPawn->CurrentX - 1) || (MovingPawn->CurrentX == TargetPawn->CurrentX + 1))
 			{
-				EatChessPiece(TargetPawn);
+				EatChessPiece(TargetPawn, bForce);
 				ChessPiecesOnBoard[TargetPawn->CurrentX][TargetPawn->CurrentY] = nullptr;
 
 				SetHistoryRow(TargetPawn, "Is Eaten", FIntPoint(TargetPawnMove[1].X, TargetPawnMove[1].Y));
@@ -531,7 +592,7 @@ void ACGChessBoard::ProcessSpecialMove()
 			NewQueen->SetActorLocation(MovingPawn->GetActorLocation());
 			ChessPiecesOnBoard[NewMove[1].X][NewMove[1].Y]->Destroy();
 			ChessPiecesOnBoard[NewMove[1].X][NewMove[1].Y] = NewQueen;
-			PositionChessPiece(NewMove[1].X, NewMove[1].Y);
+			PositionChessPiece(NewMove[1].X, NewMove[1].Y, bForce);
 
 			SetHistoryRow(MovingPawn, "Queening", FIntPoint(NewMove[1].X, NewMove[1].Y));
 		}
@@ -548,7 +609,7 @@ void ACGChessBoard::ProcessSpecialMove()
 		{			
 			TargetRook = ChessPiecesOnBoard[StartingX][0];
 			ChessPiecesOnBoard[StartingX][3] = TargetRook;
-			PositionChessPiece(StartingX, 3);
+			PositionChessPiece(StartingX, 3, bForce);
 			ChessPiecesOnBoard[StartingX][0] = nullptr;
 			SetHistoryRow(TargetRook, "Moved", FIntPoint(StartingX, 0));
 		}
@@ -558,7 +619,7 @@ void ACGChessBoard::ProcessSpecialMove()
 		{
 			TargetRook = ChessPiecesOnBoard[StartingX][7];
 			ChessPiecesOnBoard[StartingX][5] = TargetRook;
-			PositionChessPiece(StartingX, 5);
+			PositionChessPiece(StartingX, 5, bForce);
 			ChessPiecesOnBoard[StartingX][7] = nullptr;
 			SetHistoryRow(TargetRook, "Moved", FIntPoint(StartingX, 7));
 		}

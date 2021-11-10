@@ -12,6 +12,7 @@ Project for Local Multiplayer Chess Game built in Unreal Engine 4 with C++.
 	- Reset Game
 	- History of moves on HUD
 	- Undo Moves
+	- Save and Load Game
 	- Special Move En Passant
 	- Special Move Castling
 	- Special Move Promotion (Queening)

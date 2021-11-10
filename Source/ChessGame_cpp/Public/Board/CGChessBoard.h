@@ -14,6 +14,7 @@
 
 class ACGBoardTile;
 class ACGGameState;
+class UCGSaveGame;
 
 UCLASS()
 class CHESSGAME_CPP_API ACGChessBoard : public AActor
@@ -69,6 +70,12 @@ public:
 	UFUNCTION(Category = Board, BlueprintCallable)
 	int32 UndoMove();
 
+	UFUNCTION(Category = Board, BlueprintCallable)
+	void LoadGame();
+
+	UFUNCTION(Category = Board, BlueprintCallable)
+	void SaveGame();
+
 	bool ContainsValidMove(ACGBoardTile* Tile);
 
 	void HandleTileClicked(ACGBoardTile* Tile);
@@ -98,6 +105,10 @@ private:
 	UPROPERTY()
 	TArray<FCGHistoryStruct> GameHistory;
 
+	FString SaveGameSlotName;
+
+	UCGSaveGame* SaveGameObject;
+
 	void SetHistoryRow(ACGChessPiece* Piece, FString Action, FIntPoint PrevPosition);
 
 	/** Tile Generation */
@@ -111,13 +122,13 @@ private:
 	void PositionAllChessPieces(int32 GridSize);
 	void PositionChessPiece(int32 X, int32 Y, bool bForce = false);
 
-	bool MovePieceTo(ACGChessPiece* PieceDragging, int32 XIndex, int32 YIndex);
+	bool MovePieceTo(ACGChessPiece* PieceDragging, int32 XIndex, int32 YIndex, bool bForce = false);
 
-	void EatChessPiece(ACGChessPiece* TargetPiece);
+	void EatChessPiece(ACGChessPiece* TargetPiece, bool bForce = false);
 
 	bool ContainsValidMove(TArray<FIntPoint>& Moves, int32 XIndex, int32 YIndex);
 
-	void ProcessSpecialMove();
+	void ProcessSpecialMove(bool bForce = false);
 
 	void PreventCheckmate();
 

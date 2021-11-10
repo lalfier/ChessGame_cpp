@@ -22,4 +22,7 @@ public:
 
 	UFUNCTION(BlueprintImplementableEvent, Category = ChessHUD)
 	void AddHistoryRow(FCGHistoryStruct History);
+
+	UFUNCTION(BlueprintImplementableEvent, Category = ChessHUD)
+	void ClearHistoryList();
 };

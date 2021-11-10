@@ -57,3 +57,11 @@ void ACGGameState::DisplayHistory(FCGHistoryStruct History)
 		HUD->AddHistoryRow(History);
 	}
 }
+
+void ACGGameState::ResetHistoryHUD()
+{
+	if(HUD)
+	{
+		HUD->ClearHistoryList();
+	}	
+}

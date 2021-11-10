@@ -32,6 +32,8 @@ public:
 
 	void DisplayHistory(FCGHistoryStruct History);
 
+	void ResetHistoryHUD();
+
 private:
 	// Variable to hold the widget After Creating it.
 	UCGHud* HUD;
