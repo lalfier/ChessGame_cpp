@@ -6,7 +6,9 @@
 #include "GameFramework/GameModeBase.h"
 #include "CGGameMode.generated.h"
 
-/** GameMode class to specify pawn and player-controller */
+/**
+ * GameMode class to specify pawn, player-controller and game-state.
+ */
 UCLASS()
 class CHESSGAME_CPP_API ACGGameMode : public AGameModeBase
 {

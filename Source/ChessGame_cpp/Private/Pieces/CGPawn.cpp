@@ -3,7 +3,6 @@
 
 #include "Pieces/CGPawn.h"
 
-// Sets default values
 ACGPawn::ACGPawn()
 {
 	// Structure to hold one-time initialization
@@ -15,33 +14,31 @@ ACGPawn::ACGPawn()
 
 TArray<FIntPoint> ACGPawn::GetAvailableMoves(ACGChessPiece* PiecesOnBoard[GRID_SIZE][GRID_SIZE], int32 GridSize)
 {
+	// Add move if tile is empty or diagonal if kill move, else check other positions.
 	TArray<FIntPoint> Moves;
 	int32 Direction = (Team == 0) ? 1 : -1;
 
-	// Move two in direction if starting pos
+	// Move two in direction if tiles are empty and starting position
 	if(PiecesOnBoard[CurrentX + Direction][CurrentY] == nullptr)
 	{
-		// White team
-		if(Team == 0 && CurrentX == 1 && PiecesOnBoard[CurrentX + (Direction * 2)][CurrentY] == nullptr)
+		if((Team == 0 && CurrentX == 1) || (Team == 1 && CurrentX == 6))
 		{
-			Moves.Add(FIntPoint(CurrentX + (Direction * 2), CurrentY));
-		}
-		// Black team
-		if(Team == 1 && CurrentX == 6 && PiecesOnBoard[CurrentX + (Direction * 2)][CurrentY] == nullptr)
-		{
-			Moves.Add(FIntPoint(CurrentX + (Direction * 2), CurrentY));
+			if(PiecesOnBoard[CurrentX + (Direction * 2)][CurrentY] == nullptr)
+			{
+				Moves.Add(FIntPoint(CurrentX + (Direction * 2), CurrentY));
+			}
 		}
 	}
 
 	if((CurrentX + Direction) < GridSize && (CurrentX + Direction) >= 0)
 	{
-		// Move one in direction
+		// Move one in direction if tile is empty
 		if(PiecesOnBoard[CurrentX + Direction][CurrentY] == nullptr)
 		{
 			Moves.Add(FIntPoint(CurrentX + Direction, CurrentY));
 		}
 
-		// Kill Move (diagonal) Right
+		// Kill Move (diagonal) Right if there is enemy piece on tile
 		if(CurrentY != GridSize - 1)
 		{
 			if(PiecesOnBoard[CurrentX + Direction][CurrentY + 1] != nullptr && PiecesOnBoard[CurrentX + Direction][CurrentY + 1]->Team != Team)
@@ -49,7 +46,7 @@ TArray<FIntPoint> ACGPawn::GetAvailableMoves(ACGChessPiece* PiecesOnBoard[GRID_S
 				Moves.Add(FIntPoint(CurrentX + Direction, CurrentY + 1));
 			}
 		}
-		// Kill Move (diagonal) Left
+		// Kill Move (diagonal) Left if there is enemy piece on tile
 		if(CurrentY != 0)
 		{
 			if(PiecesOnBoard[CurrentX + Direction][CurrentY - 1] != nullptr && PiecesOnBoard[CurrentX + Direction][CurrentY - 1]->Team != Team)
@@ -64,6 +61,7 @@ TArray<FIntPoint> ACGPawn::GetAvailableMoves(ACGChessPiece* PiecesOnBoard[GRID_S
 
 ChessSpecialMove ACGPawn::GetSpecialMoves(ACGChessPiece* PiecesOnBoard[GRID_SIZE][GRID_SIZE], TArray<TArray<FIntPoint>>& MoveList, TArray<FIntPoint>& AvailableMoves)
 {
+	// Set special move if conditions are met
 	int32 Direction = (Team == 0) ? 1 : -1;
 
 	// Promotion (Queening)
@@ -91,11 +89,13 @@ ChessSpecialMove ACGPawn::GetSpecialMoves(ACGChessPiece* PiecesOnBoard[GRID_SIZE
 						// Check is enemy Pawn left or right from this Pawn
 						if(LastMove[1].Y == CurrentY - 1)
 						{
+							// Add move to list so that tile can be highlighted
 							AvailableMoves.Add(FIntPoint(CurrentX + Direction, CurrentY - 1));
 							return ChessSpecialMove::EnPassant;
 						}
 						if(LastMove[1].Y == CurrentY + 1)
 						{
+							// Add move to list so that tile can be highlighted
 							AvailableMoves.Add(FIntPoint(CurrentX + Direction, CurrentY + 1));
 							return ChessSpecialMove::EnPassant;
 						}

@@ -6,6 +6,9 @@
 #include "Pieces/CGChessPiece.h"
 #include "CGKnight.generated.h"
 
+/**
+ * Derived class for each chess piece type.
+ */
 UCLASS()
 class CHESSGAME_CPP_API ACGKnight : public ACGChessPiece
 {

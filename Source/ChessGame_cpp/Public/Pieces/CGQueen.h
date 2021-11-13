@@ -6,6 +6,9 @@
 #include "Pieces/CGChessPiece.h"
 #include "CGQueen.generated.h"
 
+/**
+ * Derived class for each chess piece type.
+ */
 UCLASS()
 class CHESSGAME_CPP_API ACGQueen : public ACGChessPiece
 {

@@ -3,7 +3,6 @@
 
 #include "Pieces/CGRook.h"
 
-// Sets default values
 ACGRook::ACGRook()
 {
 	// Structure to hold one-time initialization
@@ -15,7 +14,8 @@ ACGRook::ACGRook()
 
 TArray<FIntPoint> ACGRook::GetAvailableMoves(ACGChessPiece* PiecesOnBoard[GRID_SIZE][GRID_SIZE], int32 GridSize)
 {
-	TArray<FIntPoint> Moves;
+	// Add move if tile is empty or there is enemy piece on tile, else check other directions.
+	TArray<FIntPoint> Moves;	
 
 	// Move Down
 	for(int32 i = CurrentX - 1; i >= 0; i--)

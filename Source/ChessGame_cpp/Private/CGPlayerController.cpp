@@ -5,6 +5,7 @@
 
 ACGPlayerController::ACGPlayerController()
 {
+	// Set default values
 	bShowMouseCursor = true;
 	bEnableClickEvents = true;
 	DefaultMouseCursor = EMouseCursor::Crosshairs;

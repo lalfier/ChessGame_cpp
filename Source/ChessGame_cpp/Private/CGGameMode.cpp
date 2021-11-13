@@ -8,10 +8,8 @@
 
 ACGGameMode::ACGGameMode()
 {
-	// no pawn by default
+	// Set our classes as default for chess game mode
 	DefaultPawnClass = ACGPlayerPawn::StaticClass();
-	// use our own player controller class
 	PlayerControllerClass = ACGPlayerController::StaticClass();
-	// use our own game state class
 	GameStateClass = ACGGameState::StaticClass();
 }

@@ -7,24 +7,34 @@
 #include "CGPlayerPawn.generated.h"
 
 class ACGPlayerController;
+class ACGBoardTile;
 
+/**
+ * Class for handling mouse input with tiles.
+ */
 UCLASS(config=Game)
 class CHESSGAME_CPP_API ACGPlayerPawn : public APawn
 {
 	GENERATED_UCLASS_BODY()
 
+protected:
+	/** Hovered tile reference. */
+	UPROPERTY(BlueprintReadOnly)
+	ACGBoardTile* CurrentTileHover;
+
+	/** Clicked tile reference. */
+	UPROPERTY(BlueprintReadOnly)
+	ACGBoardTile* CurrentTileClick;
+
+	virtual void BeginPlay() override;
+
 public:
 	virtual void Tick(float DeltaSeconds) override;
 
-protected:
-	virtual void BeginPlay() override;
-	void TraceForTile(const FVector& Start, const FVector& End, bool bDrawDebugHelpers);
-
-	UPROPERTY(EditInstanceOnly, BlueprintReadWrite)
-	class ACGBoardTile* CurrentTileHover;
-
-	UPROPERTY(EditInstanceOnly, BlueprintReadWrite)
-	class ACGBoardTile* CurrentTileClick;
-
+private:
+	/** Player controller reference. */
 	ACGPlayerController* PC;
+
+	/** Checks is mouse over tile and is mouse button clicked. */
+	void TraceForTile(const FVector& Start, const FVector& End, bool bDrawDebugHelpers);
 };

@@ -26,20 +26,24 @@ void ACGPlayerPawn::Tick(float DeltaSeconds)
 
 	if(PC && PC->bUpdateTrace)
 	{
+		// Get mouse position in world and check is over tiles.
 		FVector Start, Dir, End;
 		PC->DeprojectMousePositionToWorld(Start, Dir);
 		End = Start + (Dir * 8000.0f);
 		TraceForTile(Start, End, false);
 
+		// Get mouse position in relation to board plane for chess piece dragging.
 		if(CurrentTileClick)
 		{
-			CurrentTileClick->OwningGrid->MousePosition = FMath::LinePlaneIntersection(Start, End, CurrentTileClick->OwningGrid->GetActorLocation(), FVector::UpVector);
+			FVector NewMousePos = FMath::LinePlaneIntersection(Start, End, CurrentTileClick->GetOwningGrid()->GetActorLocation(), FVector::UpVector);
+			CurrentTileClick->GetOwningGrid()->SetMousePosition(NewMousePos);
 		}
 	}
 }
 
 void ACGPlayerPawn::TraceForTile(const FVector& Start, const FVector& End, bool bDrawDebugHelpers)
 {
+	// Shoot line trace toward mouse
 	FHitResult HitResult;
 	GetWorld()->LineTraceSingleByChannel(HitResult, Start, End, ECC_Visibility);
 	if(bDrawDebugHelpers)
@@ -50,12 +54,14 @@ void ACGPlayerPawn::TraceForTile(const FVector& Start, const FVector& End, bool 
 
 	if(HitResult.Actor.IsValid())
 	{
-		ACGBoardTile* HitBlock = Cast<ACGBoardTile>(HitResult.Actor.Get());
-		if(CurrentTileHover != HitBlock)
+		// Mouse is over tile
+		ACGBoardTile* HitTile = Cast<ACGBoardTile>(HitResult.Actor.Get());
+		if(CurrentTileHover != HitTile)
 		{
 			if(CurrentTileHover)
 			{
-				if(CurrentTileHover->OwningGrid->ContainsValidMove(CurrentTileHover))
+				// If tile is part of available move highlight green
+				if(CurrentTileHover->GetOwningGrid()->ContainsValidMove(CurrentTileHover))
 				{
 					CurrentTileHover->AvailableHighlight(true);
 				}
@@ -64,36 +70,39 @@ void ACGPlayerPawn::TraceForTile(const FVector& Start, const FVector& End, bool 
 					CurrentTileHover->HoverHighlight(false);
 				}				
 			}
-			if(HitBlock)
+			// Highlight hit tile yellow
+			if(HitTile)
 			{
-				HitBlock->HoverHighlight(true);
+				HitTile->HoverHighlight(true);
 			}
-			CurrentTileHover = HitBlock;
+			CurrentTileHover = HitTile;
 		}
 
+		// Handle mouse clicked or released over tile
 		if(PC->IsInputKeyDown(EKeys::LeftMouseButton))
 		{
-			if(CurrentTileClick == nullptr && HitBlock)
+			if(CurrentTileClick == nullptr && HitTile)
 			{
-				CurrentTileClick = HitBlock;
+				CurrentTileClick = HitTile;
 				CurrentTileClick->HandleClicked();
-				CurrentTileClick->OwningGrid->HandleTileClicked(HitBlock);
+				CurrentTileClick->GetOwningGrid()->HandleTileClicked(HitTile);
 			}
 		}
 		else
 		{
 			if(CurrentTileClick)
 			{
-				bool bHovered = CurrentTileClick == HitBlock ? true : false;
+				bool bHovered = CurrentTileClick == HitTile ? true : false;
 				CurrentTileClick->HandleReleased(bHovered);
-				CurrentTileClick->OwningGrid->HandleTileReleased(HitBlock);
+				CurrentTileClick->GetOwningGrid()->HandleTileReleased(HitTile);
 				CurrentTileClick = nullptr;
 			}
 		}
 	}
 	else if(CurrentTileHover)
 	{
-		if(CurrentTileHover->OwningGrid->ContainsValidMove(CurrentTileHover))
+		// Handle highlight if mouse is outside of board
+		if(CurrentTileHover->GetOwningGrid()->ContainsValidMove(CurrentTileHover))
 		{
 			CurrentTileHover->AvailableHighlight(true);
 		}
@@ -105,12 +114,13 @@ void ACGPlayerPawn::TraceForTile(const FVector& Start, const FVector& End, bool 
 	}
 	else
 	{
+		// Handle release button if mouse is outside of board
 		if(!PC->IsInputKeyDown(EKeys::LeftMouseButton))
 		{
 			if(CurrentTileClick)
 			{
 				CurrentTileClick->HandleReleased(false);
-				CurrentTileClick->OwningGrid->HandleTileReleased(nullptr);
+				CurrentTileClick->GetOwningGrid()->HandleTileReleased(nullptr);
 				CurrentTileClick = nullptr;
 			}
 		}

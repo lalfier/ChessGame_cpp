@@ -8,7 +8,6 @@
 #include "Engine/StaticMesh.h"
 #include "Materials/MaterialInstance.h"
 
-// Sets default values
 ACGBoardTile::ACGBoardTile()
 {
 	// Structure to hold one-time initialization

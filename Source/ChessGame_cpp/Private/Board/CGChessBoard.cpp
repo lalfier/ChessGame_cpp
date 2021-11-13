@@ -74,10 +74,9 @@ void ACGChessBoard::BeginPlay()
 
 	GS = GetWorld()->GetGameState<ACGGameState>();
 
+	// Prepare all for chess game start
 	GenerateTiles(GRID_SIZE, TileUnitSize);
-
 	SpawnAllChessPieces();
-
 	PositionAllChessPieces(GRID_SIZE);
 }
 
@@ -85,6 +84,7 @@ void ACGChessBoard::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
+	// Move dragging chess piece to mouse position
 	if(CurrentPieceDragging)
 	{
 		MousePosition.Z += DragOffset;
@@ -119,9 +119,11 @@ void ACGChessBoard::GenerateTiles(int32 GridSize, float TileSize)
 		{
 			NewTile->SetActorScale3D(FVector(TileSize/100, TileSize/100, TileSize/100));
 			int32 XIndex = (int32)(XOffset/TileSize);
-			int32 YIndex = (int32)(YOffset/TileSize);			
+			int32 YIndex = (int32)(YOffset/TileSize);
+#if WITH_EDITOR
 			NewTile->SetActorLabel(FString::Printf(TEXT("X:%d, Y:%d"), XIndex, YIndex));
-			NewTile->OwningGrid = this;
+#endif
+			NewTile->SetOwningGrid(this);
 			NewTile->AttachToActor(this, FAttachmentTransformRules::KeepWorldTransform);
 			ChessTiles[XIndex][YIndex] = NewTile;
 		}
@@ -164,11 +166,14 @@ void ACGChessBoard::SpawnAllChessPieces()
 
 ACGChessPiece* ACGChessBoard::SpawnChessPiece(ChessPieceType Type, int32 Team)
 {
+	// Spawn chess piece, rotate it and set material depending on team
 	ACGChessPiece* CP = GetWorld()->SpawnActor<ACGChessPiece>(ChessPiecesToSpawn[Type-1], GetActorLocation(), FRotator(0, Team == 0 ? -90 : 90, 0));
 	CP->Type = Type;
 	CP->Team = Team;
 	CP->GetPieceMesh()->SetMaterial(0, TeamMaterials[Team]);
+#if WITH_EDITOR
 	CP->SetFolderPath("ChessPieces");
+#endif
 
 	return CP;
 }
@@ -178,7 +183,7 @@ void ACGChessBoard::PositionAllChessPieces(int32 GridSize)
 	// Number of tiles
 	const int32 NumTiles = GridSize * GridSize;
 
-	// Loop to spawn each tile
+	// Loop trough tiles and position spawned chess pieces
 	for(int32 TileIndex = 0; TileIndex < NumTiles; TileIndex++)
 	{
 		const int32 XPos = (TileIndex / GridSize); // Divide by dimension
@@ -200,6 +205,7 @@ void ACGChessBoard::PositionChessPiece(int32 X, int32 Y, bool bForce /*= false*/
 
 bool ACGChessBoard::MovePieceTo(ACGChessPiece* PieceDragging, int32 XIndex, int32 YIndex, bool bForce /*= false*/)
 {
+	// If there is no valid moves return
 	if(!ContainsValidMove(AvailableMoves, XIndex, YIndex))
 	{
 		return false;
@@ -211,13 +217,13 @@ bool ACGChessBoard::MovePieceTo(ACGChessPiece* PieceDragging, int32 XIndex, int3
 	if(ChessPiecesOnBoard[XIndex][YIndex])
 	{
 		ACGChessPiece* TargetPiece = ChessPiecesOnBoard[XIndex][YIndex];
-		// Same team
+		// If same team can not move there, return
 		if(PieceDragging->Team == TargetPiece->Team)
 		{
 			return false;
 		}
 
-		// Enemy team
+		// If enemy team, eat
 		EatChessPiece(TargetPiece, bForce);
 
 		SetHistoryRow(TargetPiece, "Is Eaten", FIntPoint(XIndex, YIndex));
@@ -229,11 +235,13 @@ bool ACGChessBoard::MovePieceTo(ACGChessPiece* PieceDragging, int32 XIndex, int3
 	PositionChessPiece(XIndex, YIndex, bForce);
 	SetHistoryRow(PieceDragging, "Moved", PreviousIndexPos);
 
+	// Add move to list and process special moves (like En Passant, ...) if any
 	MoveList.Add(TArray<FIntPoint>{PreviousIndexPos, FIntPoint(XIndex, YIndex)});
 	ProcessSpecialMove(bForce);
 
 	GS->SetIsWhiteTurn(!GS->GetIsWhiteTurn());
 
+	// If next player is in checkmate game is over
 	if(IsCheckmate())
 	{
 		GS->Checkmate(PieceDragging->Team);
@@ -244,6 +252,7 @@ bool ACGChessBoard::MovePieceTo(ACGChessPiece* PieceDragging, int32 XIndex, int3
 
 void ACGChessBoard::EatChessPiece(ACGChessPiece* TargetPiece, bool bForce /*= false*/)
 {
+	// Move eaten pieces off board and scale it down
 	if(TargetPiece->Team == 0)
 	{
 		WhitePiecesDead.Add(TargetPiece);
@@ -257,6 +266,295 @@ void ACGChessBoard::EatChessPiece(ACGChessPiece* TargetPiece, bool bForce /*= fa
 	TargetPiece->SetPieceScale(FVector::OneVector * DeadPieceScale, bForce);
 }
 
+bool ACGChessBoard::ContainsValidMove(TArray<FIntPoint>& Moves, int32 XIndex, int32 YIndex)
+{
+	for(int32 i = 0; i < Moves.Num(); i++)
+	{
+		if(Moves[i].X == XIndex && Moves[i].Y == YIndex)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+void ACGChessBoard::ProcessSpecialMove(bool bForce /*= false*/)
+{
+	// Process all additional actions (movements) for each special move
+	TArray<FIntPoint> NewMove = MoveList[MoveList.Num() - 1];
+
+	if(SpecialMove == ChessSpecialMove::EnPassant)
+	{
+		ACGChessPiece* MovingPawn = ChessPiecesOnBoard[NewMove[1].X][NewMove[1].Y];
+		TArray<FIntPoint> TargetPawnMove = MoveList[MoveList.Num() - 2];
+		ACGChessPiece* TargetPawn = ChessPiecesOnBoard[TargetPawnMove[1].X][TargetPawnMove[1].Y];
+
+		// Eat pawn behind moved pawn
+		if(MovingPawn->CurrentY == TargetPawn->CurrentY)
+		{
+			if((MovingPawn->CurrentX == TargetPawn->CurrentX - 1) || (MovingPawn->CurrentX == TargetPawn->CurrentX + 1))
+			{
+				EatChessPiece(TargetPawn, bForce);
+				ChessPiecesOnBoard[TargetPawn->CurrentX][TargetPawn->CurrentY] = nullptr;
+
+				SetHistoryRow(TargetPawn, "Is Eaten", FIntPoint(TargetPawnMove[1].X, TargetPawnMove[1].Y));
+				SetHistoryRow(MovingPawn, "En Passant", FIntPoint(NewMove[1].X, NewMove[1].Y));
+			}
+		}
+	}
+
+	if(SpecialMove == ChessSpecialMove::Promotion)
+	{
+		ACGChessPiece* MovingPawn = ChessPiecesOnBoard[NewMove[1].X][NewMove[1].Y];
+
+		// Swap Pawn with Queen
+		if((MovingPawn->Team == 0 && NewMove[1].X == 7) || (MovingPawn->Team == 1 && NewMove[1].X == 0))
+		{
+			ACGChessPiece* NewQueen = SpawnChessPiece(ChessPieceType::Queen, MovingPawn->Team);
+			NewQueen->SetActorLocation(MovingPawn->GetActorLocation());
+			ChessPiecesOnBoard[NewMove[1].X][NewMove[1].Y]->Destroy();
+			ChessPiecesOnBoard[NewMove[1].X][NewMove[1].Y] = NewQueen;
+			PositionChessPiece(NewMove[1].X, NewMove[1].Y, bForce);
+
+			SetHistoryRow(MovingPawn, "Queening", FIntPoint(NewMove[1].X, NewMove[1].Y));
+		}
+	}
+
+	if(SpecialMove == ChessSpecialMove::Castling)
+	{
+		ACGChessPiece* MovingKing = ChessPiecesOnBoard[NewMove[1].X][NewMove[1].Y];		
+		int32 StartingX = (NewMove[1].X == 0) ? 0 : 7;
+		ACGChessPiece* TargetRook = nullptr;
+
+		// Move Left Rook
+		if(NewMove[1].Y == 2 && (StartingX == 0 || StartingX == 7))
+		{			
+			TargetRook = ChessPiecesOnBoard[StartingX][0];
+			ChessPiecesOnBoard[StartingX][3] = TargetRook;
+			PositionChessPiece(StartingX, 3, bForce);
+			ChessPiecesOnBoard[StartingX][0] = nullptr;
+			SetHistoryRow(TargetRook, "Moved", FIntPoint(StartingX, 0));
+		}
+
+		// Move Right Rook
+		if(NewMove[1].Y == 6 && (StartingX == 0 || StartingX == 7))
+		{
+			TargetRook = ChessPiecesOnBoard[StartingX][7];
+			ChessPiecesOnBoard[StartingX][5] = TargetRook;
+			PositionChessPiece(StartingX, 5, bForce);
+			ChessPiecesOnBoard[StartingX][7] = nullptr;
+			SetHistoryRow(TargetRook, "Moved", FIntPoint(StartingX, 7));
+		}
+
+		if(TargetRook)
+		{			
+			SetHistoryRow(MovingKing, "Castling", FIntPoint(NewMove[1].X, NewMove[1].Y));
+		}
+	}
+}
+
+void ACGChessBoard::PreventCheckmate()
+{
+	ACGChessPiece* TargetKing = nullptr;
+
+	// Find king from same team as dragged pieces
+	const int32 NumTiles = GRID_SIZE * GRID_SIZE;
+	for(int32 TileIndex = 0; TileIndex < NumTiles; TileIndex++)
+	{
+		const int32 XPos = (TileIndex / GRID_SIZE); // Divide by dimension
+		const int32 YPos = (TileIndex % GRID_SIZE); // Modulo gives remainder
+
+		if(ChessPiecesOnBoard[XPos][YPos])
+		{
+			if(ChessPiecesOnBoard[XPos][YPos]->Type == ChessPieceType::King)
+			{
+				if(ChessPiecesOnBoard[XPos][YPos]->Team == CurrentPieceDragging->Team)
+				{
+					TargetKing = ChessPiecesOnBoard[XPos][YPos];
+				}
+			}
+		}
+	}
+
+	// Delete all moves that are putting King in Checkmate position
+	SimulateMoveForPieceDragging(CurrentPieceDragging, MoveList, AvailableMoves, TargetKing);
+}
+
+void ACGChessBoard::SimulateMoveForPieceDragging(ACGChessPiece* Dragging, TArray<TArray<FIntPoint>>& AllMoves, TArray<FIntPoint>& AllowableMoves, ACGChessPiece* King)
+{
+	// Save current values
+	int32 SavedX = Dragging->CurrentX;
+	int32 SavedY = Dragging->CurrentY;
+	TArray<FIntPoint> MovesToRemove;
+
+	// Simulate moves to see if king is in Checkmate
+	for(int32 i = 0; i < AllowableMoves.Num(); i++)
+	{
+		int32 SimX = AllowableMoves[i].X;
+		int32 SimY = AllowableMoves[i].Y;
+
+		FIntPoint SimKingPosition = FIntPoint(King->CurrentX, King->CurrentY);
+		// Are we dragging King
+		if(Dragging->Type == ChessPieceType::King)
+		{
+			SimKingPosition = FIntPoint(SimX, SimY);
+		}
+
+		// Copy Board and add enemy pieces that can attack, so we can use it for simulation
+		ACGChessPiece* SimulationBoard[GRID_SIZE][GRID_SIZE];
+		TArray<ACGChessPiece*> SimAttackPiece;
+		const int32 NumTiles = GRID_SIZE * GRID_SIZE;
+		for(int32 TileIndex = 0; TileIndex < NumTiles; TileIndex++)
+		{
+			const int32 XPos = (TileIndex / GRID_SIZE); // Divide by dimension
+			const int32 YPos = (TileIndex % GRID_SIZE); // Modulo gives remainder
+
+			SimulationBoard[XPos][YPos] = ChessPiecesOnBoard[XPos][YPos];
+			if(SimulationBoard[XPos][YPos])
+			{
+				if(SimulationBoard[XPos][YPos]->Team != Dragging->Team)
+				{
+					// Do not add attack if enemy piece is eaten during simulation
+					if(!(SimulationBoard[XPos][YPos]->CurrentX == SimX && SimulationBoard[XPos][YPos]->CurrentY == SimY))
+					{
+						SimAttackPiece.Add(SimulationBoard[XPos][YPos]);
+					}
+				}
+			}
+		}
+
+		// Check for Special Move En-Passant
+		if(Dragging->Type == ChessPieceType::Pawn)
+		{
+			TArray<FIntPoint> SimAvailableMoves = Dragging->GetAvailableMoves(SimulationBoard, GRID_SIZE);
+			ChessSpecialMove SimSpecialMoves = Dragging->GetSpecialMoves(SimulationBoard, AllMoves, SimAvailableMoves);
+			if(SimSpecialMoves == ChessSpecialMove::EnPassant)
+			{
+				TArray<FIntPoint> TargetPawnPosition = AllMoves[AllMoves.Num() - 1];
+				ACGChessPiece* EnemyPawn = SimulationBoard[TargetPawnPosition[1].X][TargetPawnPosition[1].Y];
+				if(EnemyPawn->CurrentY == SimY)
+				{
+					// Remove that pawn if simulated move is En-Passant
+					SimAttackPiece.Remove(EnemyPawn);
+					SimulationBoard[TargetPawnPosition[1].X][TargetPawnPosition[1].Y] = nullptr;
+				}
+			}
+		}
+
+		// Simulate move
+		SimulationBoard[SavedX][SavedY] = nullptr;
+		Dragging->CurrentX = SimX;
+		Dragging->CurrentY = SimY;
+		SimulationBoard[SimX][SimY] = Dragging;
+
+		// Simulate all attacking moves
+		TArray<FIntPoint> SimAttackingMoves;
+		for(int32 am = 0; am < SimAttackPiece.Num(); am++)
+		{
+			TArray<FIntPoint> PieceMoves = SimAttackPiece[am]->GetAvailableMoves(SimulationBoard, GRID_SIZE);
+			for(int32 pm = 0; pm < PieceMoves.Num(); pm++)
+			{
+				SimAttackingMoves.Add(PieceMoves[pm]);
+			}
+		}
+
+		// Check is there Checkmate on King
+		if(ContainsValidMove(SimAttackingMoves, SimKingPosition.X, SimKingPosition.Y))
+		{
+			MovesToRemove.Add(AllowableMoves[i]);
+		}
+
+		// Restore saved values
+		Dragging->CurrentX = SavedX;
+		Dragging->CurrentY = SavedY;
+	}
+
+	// If Checkmate position, remove it from Available Move list
+	for(int32 i = 0; i < MovesToRemove.Num(); i++)
+	{
+		AllowableMoves.Remove(MovesToRemove[i]);
+	}
+}
+
+bool ACGChessBoard::IsCheckmate()
+{
+	TArray<FIntPoint> LastMove = MoveList[MoveList.Num() - 1];
+	int32 TargetTeam = (ChessPiecesOnBoard[LastMove[1].X][LastMove[1].Y]->Team == 0) ? 1 : 0;
+
+	// Make list of attacking and defending pieces on board, and defending king
+	TArray<ACGChessPiece*> AttackingPieces;
+	TArray<ACGChessPiece*> DefendingPieces;
+	ACGChessPiece* TargetKing = nullptr;
+	const int32 NumTiles = GRID_SIZE * GRID_SIZE;
+	for(int32 TileIndex = 0; TileIndex < NumTiles; TileIndex++)
+	{
+		const int32 XPos = (TileIndex / GRID_SIZE); // Divide by dimension
+		const int32 YPos = (TileIndex % GRID_SIZE); // Modulo gives remainder
+
+		if(ChessPiecesOnBoard[XPos][YPos])
+		{
+			if(ChessPiecesOnBoard[XPos][YPos]->Team == TargetTeam)
+			{
+				DefendingPieces.Add(ChessPiecesOnBoard[XPos][YPos]);
+				if(ChessPiecesOnBoard[XPos][YPos]->Type == ChessPieceType::King)
+				{
+					TargetKing = ChessPiecesOnBoard[XPos][YPos];
+				}
+			}
+			else
+			{
+				AttackingPieces.Add(ChessPiecesOnBoard[XPos][YPos]);
+			}
+		}
+	}
+
+	// Is King under attack
+	TArray<FIntPoint> CurrentAvailableMoves;
+	for(int32 i = 0; i < AttackingPieces.Num(); i++)
+	{
+		TArray<FIntPoint> PieceMoves = AttackingPieces[i]->GetAvailableMoves(ChessPiecesOnBoard, GRID_SIZE);
+		for(int32 pm = 0; pm < PieceMoves.Num(); pm++)
+		{
+			CurrentAvailableMoves.Add(PieceMoves[pm]);
+		}
+	}
+	// Is Check
+	if(ContainsValidMove(CurrentAvailableMoves, TargetKing->CurrentX, TargetKing->CurrentY))
+	{
+		// Is there available moves
+		for(int32 i = 0; i < DefendingPieces.Num(); i++)
+		{
+			TArray<FIntPoint> DefendingMoves = DefendingPieces[i]->GetAvailableMoves(ChessPiecesOnBoard, GRID_SIZE);
+			SimulateMoveForPieceDragging(DefendingPieces[i], MoveList, DefendingMoves, TargetKing);
+			// Not Checkmate
+			if(DefendingMoves.Num() != 0)
+			{
+				return false;
+			}
+		}
+
+		// Checkmate
+		return true;
+	}
+
+	return false;
+}
+
+void ACGChessBoard::SetHistoryRow(ACGChessPiece* Piece, FString Action, FIntPoint PrevPosition)
+{
+	// Populate struct
+	FCGHistoryStruct HistoryRow;
+	HistoryRow.Team = Piece->Team;
+	HistoryRow.PieceType = Piece->Type;
+	HistoryRow.GridLocation = FIntPoint(Piece->CurrentX, Piece->CurrentY);
+	HistoryRow.ActionStr = Action;
+	HistoryRow.PrevLocation = PrevPosition;
+	// Add it to list and send it to UI
+	GameHistory.Add(HistoryRow);
+	GS->DisplayHistory(HistoryRow);
+}
+
 FVector ACGChessBoard::GetTileCenter(int32 X, int32 Y)
 {
 	return FVector(X * TileUnitSize, Y * TileUnitSize, ZOffset) - Bounds;
@@ -267,7 +565,7 @@ FIntPoint ACGChessBoard::GetTileIndex(int32 GridSize, ACGBoardTile* Tile)
 	// Number of tiles
 	const int32 NumTiles = GridSize * GridSize;
 
-	// Loop to spawn each tile
+	// Loop trough tiles and find X and Y index of a tile
 	for(int32 TileIndex = 0; TileIndex < NumTiles; TileIndex++)
 	{
 		const int32 XPos = (TileIndex / GridSize); // Divide by dimension
@@ -297,18 +595,6 @@ void ACGChessBoard::RemoveHighlightTiles()
 		ChessTiles[AvailableMoves[i].X][AvailableMoves[i].Y]->AvailableHighlight(false);
 	}
 	AvailableMoves.Empty();
-}
-
-void ACGChessBoard::SetHistoryRow(ACGChessPiece* Piece, FString Action, FIntPoint PrevPosition)
-{
-	FCGHistoryStruct HistoryRow;
-	HistoryRow.Team = Piece->Team;
-	HistoryRow.PieceType = Piece->Type;
-	HistoryRow.GridLocation = FIntPoint(Piece->CurrentX, Piece->CurrentY);
-	HistoryRow.ActionStr = Action;
-	HistoryRow.PrevLocation = PrevPosition;
-	GameHistory.Add(HistoryRow);
-	GS->DisplayHistory(HistoryRow);
 }
 
 void ACGChessBoard::ResetBoard()
@@ -357,6 +643,7 @@ int32 ACGChessBoard::UndoMove()
 
 	if(GameHistory.Num() > 0)
 	{
+		// Get last history entry
 		FCGHistoryStruct LastHistory = GameHistory[GameHistory.Num() - 1];
 
 		if(LastHistory.ActionStr.Equals("Moved"))
@@ -366,9 +653,11 @@ int32 ACGChessBoard::UndoMove()
 
 			if(GameHistory.Num() > 1)
 			{
+				// Check is entry before last history entry is piece eaten
 				FCGHistoryStruct EatenHistory = GameHistory[GameHistory.Num() - 2];
 				if(EatenHistory.ActionStr.Equals("Is Eaten"))
 				{
+					// Restore dead piece
 					ACGChessPiece* EatenPiece;
 					if(EatenHistory.Team == 0)
 					{
@@ -383,13 +672,18 @@ int32 ACGChessBoard::UndoMove()
 					ChessPiecesOnBoard[EatenHistory.PrevLocation.X][EatenHistory.PrevLocation.Y] = EatenPiece;
 					EatenPiece->SetPieceScale(FVector::OneVector * EatenPiece->GetDefaultScale());
 					PositionChessPiece(EatenHistory.PrevLocation.X, EatenHistory.PrevLocation.Y);
+
+					// Remove eaten history entry and add to return int for UI to know
 					GameHistory.RemoveAt(GameHistory.Num() - 2);
 					UndoMoves++;
 				}
 			}
 
-			ChessPiecesOnBoard[LastHistory.PrevLocation.X][LastHistory.PrevLocation.Y] = MovedPiece;			
+			// Finish moving piece from last history entry
+			ChessPiecesOnBoard[LastHistory.PrevLocation.X][LastHistory.PrevLocation.Y] = MovedPiece;
 			PositionChessPiece(LastHistory.PrevLocation.X, LastHistory.PrevLocation.Y);
+
+			// Remove last history entry, remove last player move, set enemy turn and add to return int for UI to know
 			GameHistory.RemoveAt(GameHistory.Num() - 1);
 			MoveList.RemoveAt(MoveList.Num() - 1);
 			GS->SetIsWhiteTurn(!GS->GetIsWhiteTurn());
@@ -397,11 +691,14 @@ int32 ACGChessBoard::UndoMove()
 		}
 		else
 		{
+			// Check is last history entry is one of special moves
 			if(LastHistory.ActionStr.Equals("En Passant"))
 			{
+				// Remove last history entry and add to return int for UI to know
 				GameHistory.RemoveAt(GameHistory.Num() - 1);
 				UndoMoves++;
 
+				// Set new last history and restore dead pawn
 				LastHistory = GameHistory[GameHistory.Num() - 1];
 				ACGChessPiece* EatenPiece;
 				if(LastHistory.Team == 0)
@@ -417,14 +714,19 @@ int32 ACGChessBoard::UndoMove()
 				ChessPiecesOnBoard[LastHistory.PrevLocation.X][LastHistory.PrevLocation.Y] = EatenPiece;
 				EatenPiece->SetPieceScale(FVector::OneVector * EatenPiece->GetDefaultScale());
 				PositionChessPiece(LastHistory.PrevLocation.X, LastHistory.PrevLocation.Y);
+
+				// Remove eaten history entry and add to return int for UI to know
 				GameHistory.RemoveAt(GameHistory.Num() - 1);
 				UndoMoves++;
 
+				// Set new last history and move pawn
 				LastHistory = GameHistory[GameHistory.Num() - 1];
 				ACGChessPiece* MovedPiece = ChessPiecesOnBoard[LastHistory.GridLocation.X][LastHistory.GridLocation.Y];
 				ChessPiecesOnBoard[LastHistory.GridLocation.X][LastHistory.GridLocation.Y] = nullptr;
 				ChessPiecesOnBoard[LastHistory.PrevLocation.X][LastHistory.PrevLocation.Y] = MovedPiece;
 				PositionChessPiece(LastHistory.PrevLocation.X, LastHistory.PrevLocation.Y);
+
+				// Remove last history entry, remove last player move, set enemy turn and add to return int for UI to know
 				GameHistory.RemoveAt(GameHistory.Num() - 1);
 				MoveList.RemoveAt(MoveList.Num() - 1);
 				GS->SetIsWhiteTurn(!GS->GetIsWhiteTurn());
@@ -432,18 +734,24 @@ int32 ACGChessBoard::UndoMove()
 			}
 			else if(LastHistory.ActionStr.Equals("Queening"))
 			{
+				// Swap queen with pawn
 				ACGChessPiece* NewPawn = SpawnChessPiece(ChessPieceType::Pawn, LastHistory.Team);
 				NewPawn->SetActorLocation(ChessPiecesOnBoard[LastHistory.GridLocation.X][LastHistory.GridLocation.Y]->GetActorLocation());
 				ChessPiecesOnBoard[LastHistory.GridLocation.X][LastHistory.GridLocation.Y]->Destroy();
 				ChessPiecesOnBoard[LastHistory.GridLocation.X][LastHistory.GridLocation.Y] = NewPawn;
 				PositionChessPiece(LastHistory.GridLocation.X, LastHistory.GridLocation.Y);
+
+				// Remove eaten history entry and add to return int for UI to know
 				GameHistory.RemoveAt(GameHistory.Num() - 1);
 				UndoMoves++;
 
+				// Set new last history and move pawn
 				LastHistory = GameHistory[GameHistory.Num() - 1];
 				ChessPiecesOnBoard[LastHistory.GridLocation.X][LastHistory.GridLocation.Y] = nullptr;
 				ChessPiecesOnBoard[LastHistory.PrevLocation.X][LastHistory.PrevLocation.Y] = NewPawn;
 				PositionChessPiece(LastHistory.PrevLocation.X, LastHistory.PrevLocation.Y);
+
+				// Remove last history entry, remove last player move, set enemy turn and add to return int for UI to know
 				GameHistory.RemoveAt(GameHistory.Num() - 1);
 				MoveList.RemoveAt(MoveList.Num() - 1);
 				GS->SetIsWhiteTurn(!GS->GetIsWhiteTurn());
@@ -451,20 +759,27 @@ int32 ACGChessBoard::UndoMove()
 			}
 			else if(LastHistory.ActionStr.Equals("Castling"))
 			{
+				// Remove last history entry and add to return int for UI to know
 				GameHistory.RemoveAt(GameHistory.Num() - 1);
 				UndoMoves++;
 
+				// Move rook and king to previous locations
 				for(int32 i = 0; i < 2; i++)
 				{
+					// Set new last history
 					LastHistory = GameHistory[GameHistory.Num() - 1];
+					// Move piece
 					ACGChessPiece* MovedPiece = ChessPiecesOnBoard[LastHistory.GridLocation.X][LastHistory.GridLocation.Y];
 					ChessPiecesOnBoard[LastHistory.GridLocation.X][LastHistory.GridLocation.Y] = nullptr;
 					ChessPiecesOnBoard[LastHistory.PrevLocation.X][LastHistory.PrevLocation.Y] = MovedPiece;
 					PositionChessPiece(LastHistory.PrevLocation.X, LastHistory.PrevLocation.Y);
+
+					// Remove eaten history entry and add to return int for UI to know
 					GameHistory.RemoveAt(GameHistory.Num() - 1);
 					UndoMoves++;
 				}
 
+				// Remove last player move and set enemy turn
 				MoveList.RemoveAt(MoveList.Num() - 1);
 				GS->SetIsWhiteTurn(!GS->GetIsWhiteTurn());
 			}
@@ -545,276 +860,6 @@ bool ACGChessBoard::ContainsValidMove(ACGBoardTile* Tile)
 	return false;
 }
 
-bool ACGChessBoard::ContainsValidMove(TArray<FIntPoint>& Moves, int32 XIndex, int32 YIndex)
-{
-	for(int32 i = 0; i < Moves.Num(); i++)
-	{
-		if(Moves[i].X == XIndex && Moves[i].Y == YIndex)
-		{
-			return true;
-		}
-	}
-
-	return false;
-}
-
-void ACGChessBoard::ProcessSpecialMove(bool bForce /*= false*/)
-{
-	TArray<FIntPoint> NewMove = MoveList[MoveList.Num() - 1];
-
-	if(SpecialMove == ChessSpecialMove::EnPassant)
-	{
-		ACGChessPiece* MovingPawn = ChessPiecesOnBoard[NewMove[1].X][NewMove[1].Y];
-		TArray<FIntPoint> TargetPawnMove = MoveList[MoveList.Num() - 2];
-		ACGChessPiece* TargetPawn = ChessPiecesOnBoard[TargetPawnMove[1].X][TargetPawnMove[1].Y];
-
-		if(MovingPawn->CurrentY == TargetPawn->CurrentY)
-		{
-			if((MovingPawn->CurrentX == TargetPawn->CurrentX - 1) || (MovingPawn->CurrentX == TargetPawn->CurrentX + 1))
-			{
-				EatChessPiece(TargetPawn, bForce);
-				ChessPiecesOnBoard[TargetPawn->CurrentX][TargetPawn->CurrentY] = nullptr;
-
-				SetHistoryRow(TargetPawn, "Is Eaten", FIntPoint(TargetPawnMove[1].X, TargetPawnMove[1].Y));
-				SetHistoryRow(MovingPawn, "En Passant", FIntPoint(NewMove[1].X, NewMove[1].Y));
-			}
-		}
-	}
-
-	if(SpecialMove == ChessSpecialMove::Promotion)
-	{
-		ACGChessPiece* MovingPawn = ChessPiecesOnBoard[NewMove[1].X][NewMove[1].Y];
-
-		// Swap Pawn with Queen
-		if((MovingPawn->Team == 0 && NewMove[1].X == 7) || (MovingPawn->Team == 1 && NewMove[1].X == 0))
-		{
-			ACGChessPiece* NewQueen = SpawnChessPiece(ChessPieceType::Queen, MovingPawn->Team);
-			NewQueen->SetActorLocation(MovingPawn->GetActorLocation());
-			ChessPiecesOnBoard[NewMove[1].X][NewMove[1].Y]->Destroy();
-			ChessPiecesOnBoard[NewMove[1].X][NewMove[1].Y] = NewQueen;
-			PositionChessPiece(NewMove[1].X, NewMove[1].Y, bForce);
-
-			SetHistoryRow(MovingPawn, "Queening", FIntPoint(NewMove[1].X, NewMove[1].Y));
-		}
-	}
-
-	if(SpecialMove == ChessSpecialMove::Castling)
-	{
-		ACGChessPiece* MovingKing = ChessPiecesOnBoard[NewMove[1].X][NewMove[1].Y];		
-		int32 StartingX = (NewMove[1].X == 0) ? 0 : 7;
-		ACGChessPiece* TargetRook = nullptr;
-
-		// Move Left Rook
-		if(NewMove[1].Y == 2 && (StartingX == 0 || StartingX == 7))
-		{			
-			TargetRook = ChessPiecesOnBoard[StartingX][0];
-			ChessPiecesOnBoard[StartingX][3] = TargetRook;
-			PositionChessPiece(StartingX, 3, bForce);
-			ChessPiecesOnBoard[StartingX][0] = nullptr;
-			SetHistoryRow(TargetRook, "Moved", FIntPoint(StartingX, 0));
-		}
-
-		// Move Right Rook
-		if(NewMove[1].Y == 6 && (StartingX == 0 || StartingX == 7))
-		{
-			TargetRook = ChessPiecesOnBoard[StartingX][7];
-			ChessPiecesOnBoard[StartingX][5] = TargetRook;
-			PositionChessPiece(StartingX, 5, bForce);
-			ChessPiecesOnBoard[StartingX][7] = nullptr;
-			SetHistoryRow(TargetRook, "Moved", FIntPoint(StartingX, 7));
-		}
-
-		if(TargetRook)
-		{			
-			SetHistoryRow(MovingKing, "Castling", FIntPoint(NewMove[1].X, NewMove[1].Y));
-		}
-	}
-}
-
-void ACGChessBoard::PreventCheckmate()
-{
-	ACGChessPiece* TargetKing = nullptr;
-
-	const int32 NumTiles = GRID_SIZE * GRID_SIZE;
-	for(int32 TileIndex = 0; TileIndex < NumTiles; TileIndex++)
-	{
-		const int32 XPos = (TileIndex / GRID_SIZE); // Divide by dimension
-		const int32 YPos = (TileIndex % GRID_SIZE); // Modulo gives remainder
-
-		if(ChessPiecesOnBoard[XPos][YPos])
-		{
-			if(ChessPiecesOnBoard[XPos][YPos]->Type == ChessPieceType::King)
-			{
-				if(ChessPiecesOnBoard[XPos][YPos]->Team == CurrentPieceDragging->Team)
-				{
-					TargetKing = ChessPiecesOnBoard[XPos][YPos];
-				}
-			}
-		}
-	}
-
-	// Delete all moves that are putting King in Checkmate position
-	SimulateMoveForPieceDragging(CurrentPieceDragging, MoveList, AvailableMoves, TargetKing);
-}
-
-void ACGChessBoard::SimulateMoveForPieceDragging(ACGChessPiece* Dragging, TArray<TArray<FIntPoint>>& AllMoves, TArray<FIntPoint>& AllowableMoves, ACGChessPiece* King)
-{
-	// Save current values
-	int32 SavedX = Dragging->CurrentX;
-	int32 SavedY = Dragging->CurrentY;
-	TArray<FIntPoint> MovesToRemove;
-
-	// Simulate moves to see if king is in Checkmate
-	for(int32 i = 0; i < AllowableMoves.Num(); i++)
-	{
-		int32 SimX = AllowableMoves[i].X;
-		int32 SimY = AllowableMoves[i].Y;
-
-		FIntPoint SimKingPosition = FIntPoint(King->CurrentX, King->CurrentY);
-		// Are we dragging King
-		if(Dragging->Type == ChessPieceType::King)
-		{
-			SimKingPosition = FIntPoint(SimX, SimY);
-		}
-
-		// Copy Board and add enemy pieces that can attack, so we can use it for simulation
-		ACGChessPiece* SimulationBoard[GRID_SIZE][GRID_SIZE];
-		TArray<ACGChessPiece*> SimAttackPiece;
-		const int32 NumTiles = GRID_SIZE * GRID_SIZE;
-		for(int32 TileIndex = 0; TileIndex < NumTiles; TileIndex++)
-		{
-			const int32 XPos = (TileIndex / GRID_SIZE); // Divide by dimension
-			const int32 YPos = (TileIndex % GRID_SIZE); // Modulo gives remainder
-
-			SimulationBoard[XPos][YPos] = ChessPiecesOnBoard[XPos][YPos];
-			if(SimulationBoard[XPos][YPos])
-			{
-				if(SimulationBoard[XPos][YPos]->Team != Dragging->Team)
-				{
-					// Do not add attack if enemy piece is eaten during simulation
-					if(!(SimulationBoard[XPos][YPos]->CurrentX == SimX && SimulationBoard[XPos][YPos]->CurrentY == SimY))
-					{
-						SimAttackPiece.Add(SimulationBoard[XPos][YPos]);
-					}
-				}
-			}
-		}
-
-		// Check for Special Move En-Passant
-		if(Dragging->Type == ChessPieceType::Pawn)
-		{
-			TArray<FIntPoint> SimAvailableMoves = Dragging->GetAvailableMoves(SimulationBoard, GRID_SIZE);
-			ChessSpecialMove SimSpecialMoves = Dragging->GetSpecialMoves(SimulationBoard, AllMoves, SimAvailableMoves);
-			if(SimSpecialMoves == ChessSpecialMove::EnPassant)
-			{
-				TArray<FIntPoint> TargetPawnPosition = AllMoves[AllMoves.Num() - 1];
-				ACGChessPiece* EnemyPawn = SimulationBoard[TargetPawnPosition[1].X][TargetPawnPosition[1].Y];
-				if(EnemyPawn->CurrentY == SimY)
-				{
-					SimAttackPiece.Remove(EnemyPawn);
-					SimulationBoard[TargetPawnPosition[1].X][TargetPawnPosition[1].Y] = nullptr;
-				}
-			}
-		}
-
-		// Simulate move
-		SimulationBoard[SavedX][SavedY] = nullptr;
-		Dragging->CurrentX = SimX;
-		Dragging->CurrentY = SimY;
-		SimulationBoard[SimX][SimY] = Dragging;
-
-		// Simulate all attacking moves
-		TArray<FIntPoint> SimAttackingMoves;
-		for(int32 am = 0; am < SimAttackPiece.Num(); am++)
-		{
-			TArray<FIntPoint> PieceMoves = SimAttackPiece[am]->GetAvailableMoves(SimulationBoard, GRID_SIZE);
-			for(int32 pm = 0; pm < PieceMoves.Num(); pm++)
-			{
-				SimAttackingMoves.Add(PieceMoves[pm]);
-			}
-		}
-
-		// Check is there Checkmate on King
-		if(ContainsValidMove(SimAttackingMoves, SimKingPosition.X, SimKingPosition.Y))
-		{
-			MovesToRemove.Add(AllowableMoves[i]);
-		}
-
-		// Restore saved values
-		Dragging->CurrentX = SavedX;
-		Dragging->CurrentY = SavedY;
-	}
-
-	// If Checkmate position, remove it from Available Move list
-	for(int32 i = 0; i < MovesToRemove.Num(); i++)
-	{
-		AllowableMoves.Remove(MovesToRemove[i]);
-	}
-}
-
-bool ACGChessBoard::IsCheckmate()
-{
-	TArray<FIntPoint> LastMove = MoveList[MoveList.Num() - 1];
-	int32 TargetTeam = (ChessPiecesOnBoard[LastMove[1].X][LastMove[1].Y]->Team == 0) ? 1 : 0;
-
-	TArray<ACGChessPiece*> AttackingPieces;
-	TArray<ACGChessPiece*> DefendingPieces;
-	ACGChessPiece* TargetKing = nullptr;
-	const int32 NumTiles = GRID_SIZE * GRID_SIZE;
-	for(int32 TileIndex = 0; TileIndex < NumTiles; TileIndex++)
-	{
-		const int32 XPos = (TileIndex / GRID_SIZE); // Divide by dimension
-		const int32 YPos = (TileIndex % GRID_SIZE); // Modulo gives remainder
-
-		if(ChessPiecesOnBoard[XPos][YPos])
-		{
-			if(ChessPiecesOnBoard[XPos][YPos]->Team == TargetTeam)
-			{
-				DefendingPieces.Add(ChessPiecesOnBoard[XPos][YPos]);
-				if(ChessPiecesOnBoard[XPos][YPos]->Type == ChessPieceType::King)
-				{
-					TargetKing = ChessPiecesOnBoard[XPos][YPos];
-				}
-			}
-			else
-			{
-				AttackingPieces.Add(ChessPiecesOnBoard[XPos][YPos]);
-			}
-		}
-	}
-
-	// Is King under attack
-	TArray<FIntPoint> CurrentAvailableMoves;
-	for(int32 i = 0; i < AttackingPieces.Num(); i++)
-	{
-		TArray<FIntPoint> PieceMoves = AttackingPieces[i]->GetAvailableMoves(ChessPiecesOnBoard, GRID_SIZE);
-		for(int32 pm = 0; pm < PieceMoves.Num(); pm++)
-		{
-			CurrentAvailableMoves.Add(PieceMoves[pm]);
-		}
-	}
-	// Is Check
-	if(ContainsValidMove(CurrentAvailableMoves, TargetKing->CurrentX, TargetKing->CurrentY))
-	{
-		// Is there available moves
-		for(int32 i = 0; i < DefendingPieces.Num(); i++)
-		{
-			TArray<FIntPoint> DefendingMoves = DefendingPieces[i]->GetAvailableMoves(ChessPiecesOnBoard, GRID_SIZE);
-			SimulateMoveForPieceDragging(DefendingPieces[i], MoveList, DefendingMoves, TargetKing);
-			// Not Checkmate
-			if(DefendingMoves.Num() != 0)
-			{
-				return false;
-			}
-		}
-
-		// Checkmate
-		return true;
-	}
-
-	return false;
-}
-
 void ACGChessBoard::HandleTileClicked(ACGBoardTile* Tile)
 {
 	FIntPoint TileIndexPos = GetTileIndex(GRID_SIZE, Tile);
@@ -846,18 +891,21 @@ void ACGChessBoard::HandleTileReleased(ACGBoardTile* Tile)
 	{
 		FIntPoint PreviousIndexPos = FIntPoint(CurrentPieceDragging->CurrentX, CurrentPieceDragging->CurrentY);		
 
+		// Is dragged piece is released over tile
 		if(Tile)
 		{
 			FIntPoint TileIndexPos = GetTileIndex(GRID_SIZE, Tile);
 			bool bValidMove = MovePieceTo(CurrentPieceDragging, TileIndexPos.X, TileIndexPos.Y);
 			if(!bValidMove)
 			{
+				// If move is not valid return dragged piece to previous position
 				CurrentPieceDragging->SetPiecePosition(GetTileCenter(PreviousIndexPos.X, PreviousIndexPos.Y));				
 			}
 			CurrentPieceDragging = nullptr;
 		}
 		else
 		{
+			// Return dragged piece to previous position
 			CurrentPieceDragging->SetPiecePosition(GetTileCenter(PreviousIndexPos.X, PreviousIndexPos.Y));
 			CurrentPieceDragging = nullptr;
 		}

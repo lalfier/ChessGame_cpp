@@ -3,7 +3,6 @@
 
 #include "Pieces/CGKing.h"
 
-// Sets default values
 ACGKing::ACGKing()
 {
 	// Structure to hold one-time initialization
@@ -15,6 +14,7 @@ ACGKing::ACGKing()
 
 TArray<FIntPoint> ACGKing::GetAvailableMoves(ACGChessPiece* PiecesOnBoard[GRID_SIZE][GRID_SIZE], int32 GridSize)
 {
+	// Add move if tile is empty or there is enemy piece on tile, else check other positions.
 	TArray<FIntPoint> Moves;
 		
 	if(CurrentY + 1 < GridSize)
@@ -150,6 +150,7 @@ TArray<FIntPoint> ACGKing::GetAvailableMoves(ACGChessPiece* PiecesOnBoard[GRID_S
 
 ChessSpecialMove ACGKing::GetSpecialMoves(ACGChessPiece* PiecesOnBoard[GRID_SIZE][GRID_SIZE], TArray<TArray<FIntPoint>>& MoveList, TArray<FIntPoint>& AvailableMoves)
 {
+	// Set special move if conditions are met
 	ChessSpecialMove SpecialMove = ChessSpecialMove::Basic;
 
 	int32 StartingX = (Team == 0) ? 0 : 7;
@@ -174,6 +175,7 @@ ChessSpecialMove ACGKing::GetSpecialMoves(ACGChessPiece* PiecesOnBoard[GRID_SIZE
 						{
 							if(PiecesOnBoard[StartingX][3] == nullptr)
 							{
+								// Add move to list so that tile can be highlighted
 								AvailableMoves.Add(FIntPoint(StartingX, 2));
 								SpecialMove = ChessSpecialMove::Castling;
 							}
@@ -195,6 +197,7 @@ ChessSpecialMove ACGKing::GetSpecialMoves(ACGChessPiece* PiecesOnBoard[GRID_SIZE
 					{
 						if(PiecesOnBoard[StartingX][5] == nullptr)
 						{
+							// Add move to list so that tile can be highlighted
 							AvailableMoves.Add(FIntPoint(StartingX, 6));
 							SpecialMove = ChessSpecialMove::Castling;
 						}

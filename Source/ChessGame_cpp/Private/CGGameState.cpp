@@ -17,7 +17,7 @@ void ACGGameState::BeginPlay()
 {
 	Super::BeginPlay();
 	
-	// Create the widget and store it.
+	// Instantiate the widget and store it.
 	HUD = CreateWidget<UCGHud>(GetWorld(), HUDClass);
 	if(HUD)
 	{
@@ -25,6 +25,7 @@ void ACGGameState::BeginPlay()
 		HUD->AddToViewport();
 	}
 
+	// White is first to play
 	SetIsWhiteTurn(true);
 }
 
@@ -35,11 +36,6 @@ void ACGGameState::SetIsWhiteTurn(bool bIsTurn)
 	{
 		HUD->ShowPlayerTurn(bWhiteTurn);
 	}
-}
-
-bool ACGGameState::GetIsWhiteTurn()
-{
-	return bWhiteTurn;
 }
 
 void ACGGameState::Checkmate(int32 Team)

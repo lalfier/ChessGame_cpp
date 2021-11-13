@@ -8,7 +8,7 @@
 #include "CGSaveGame.generated.h"
 
 /**
- * Save all moves in a list
+ * Save game object with list of move structs.
  */
 UCLASS()
 class CHESSGAME_CPP_API UCGSaveGame : public USaveGame
@@ -16,6 +16,7 @@ class CHESSGAME_CPP_API UCGSaveGame : public USaveGame
 	GENERATED_BODY()
 	
 public:
+	/** Every move in list has previous and current position. */
 	UPROPERTY()
 	TArray<FCGSaveStruct> SavedMoveList;
 };

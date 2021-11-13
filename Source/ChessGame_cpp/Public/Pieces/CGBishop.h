@@ -6,6 +6,9 @@
 #include "Pieces/CGChessPiece.h"
 #include "CGBishop.generated.h"
 
+/**
+ * Derived class for each chess piece type.
+ */
 UCLASS()
 class CHESSGAME_CPP_API ACGBishop : public ACGChessPiece
 {

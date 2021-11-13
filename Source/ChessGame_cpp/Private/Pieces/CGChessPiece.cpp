@@ -3,7 +3,6 @@
 
 #include "Pieces/CGChessPiece.h"
 
-// Sets default values
 ACGChessPiece::ACGChessPiece()
 {
 	// Set this character to call Tick() every frame.
@@ -27,6 +26,7 @@ void ACGChessPiece::Tick(float DeltaSeconds)
 {
 	Super::Tick(DeltaSeconds);
 
+	// Interpolate piece position and scale
 	SetActorLocation(FMath::VInterpTo(GetActorLocation(), DesiredPosition, DeltaSeconds, 10));
 	PieceMesh->SetRelativeScale3D(FMath::VInterpTo(PieceMesh->GetRelativeScale3D(), DesiredScale, DeltaSeconds, 10));
 }
@@ -51,11 +51,13 @@ void ACGChessPiece::SetPieceScale(FVector Scale, bool bForce /*= false*/)
 
 TArray<FIntPoint> ACGChessPiece::GetAvailableMoves(ACGChessPiece* PiecesOnBoard[GRID_SIZE][GRID_SIZE], int32 GridSize)
 {
+	// Override in derived classes.
 	TArray<FIntPoint> NoMoves;
 	return NoMoves;
 }
 
 ChessSpecialMove ACGChessPiece::GetSpecialMoves(ACGChessPiece* PiecesOnBoard[GRID_SIZE][GRID_SIZE], TArray<TArray<FIntPoint>>& MoveList, TArray<FIntPoint>& AvailableMoves)
 {
+	// Override in derived classes.
 	return ChessSpecialMove::Basic;
 }
