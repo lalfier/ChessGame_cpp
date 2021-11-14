@@ -766,17 +766,8 @@ int32 ACGChessBoard::UndoMove()
 				GameHistory.RemoveAt(GameHistory.Num() - 1);
 				UndoMoves++;
 
-				// Set new last history and move pawn
-				LastHistory = GameHistory[GameHistory.Num() - 1];
-				ChessPiecesOnBoard[LastHistory.GridLocation.X][LastHistory.GridLocation.Y] = nullptr;
-				ChessPiecesOnBoard[LastHistory.PrevLocation.X][LastHistory.PrevLocation.Y] = NewPawn;
-				PositionChessPiece(LastHistory.PrevLocation.X, LastHistory.PrevLocation.Y);
-
-				// Remove last history entry, remove last player move, set enemy turn and add to return int for UI to know
-				GameHistory.RemoveAt(GameHistory.Num() - 1);
-				MoveList.RemoveAt(MoveList.Num() - 1);
-				GS->SetIsWhiteTurn(!GS->GetIsWhiteTurn());
-				UndoMoves++;
+				// Move pawn to previous location
+				UndoMoves += UndoMove();
 			}
 			else if(LastHistory.ActionStr.Equals("Castling"))
 			{
