@@ -6,6 +6,7 @@
 #include "GameFramework/Actor.h"
 #include "Pieces/CGChessPiece.h"
 #include "History/CGHistoryStruct.h"
+#include "CGGameState.h"
 #include "CGChessBoard.generated.h"
 
 #ifndef GRID_SIZE
@@ -13,7 +14,6 @@
 #endif
 
 class ACGBoardTile;
-class ACGGameState;
 class UCGSaveGame;
 
 /**
@@ -182,8 +182,8 @@ private:
 	/** Simulate all moves that dragged piece can take, including special moves and remove those that put king in check position. */
 	void SimulateMoveForPieceDragging(ACGChessPiece* Dragging, TArray<TArray<FIntPoint>>& AllMoves, TArray<FIntPoint>& AllowableMoves, ACGChessPiece* King);
 
-	/** Return true if defending king in check and defending pieces have no available moves. */
-	bool IsCheckmate();
+	/** Return victory condition if player has no available moves. */
+	ChessGameOver GameOverConditionMet();
 
 	/** Prepare history row so it can be shown on UI. */
 	void SetHistoryRow(ACGChessPiece* Piece, FString Action, FIntPoint PrevPosition);

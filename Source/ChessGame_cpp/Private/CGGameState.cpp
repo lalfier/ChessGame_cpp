@@ -46,6 +46,14 @@ void ACGGameState::Checkmate(int32 Team)
 	}
 }
 
+void ACGGameState::Stalemate()
+{
+	if(HUD)
+	{
+		HUD->ShowVictoryMenu(-1);
+	}
+}
+
 void ACGGameState::DisplayHistory(FCGHistoryStruct History)
 {
 	if(HUD)

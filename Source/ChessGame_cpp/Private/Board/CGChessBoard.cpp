@@ -9,7 +9,6 @@
 #include "Pieces/CGBishop.h"
 #include "Pieces/CGQueen.h"
 #include "Pieces/CGKing.h"
-#include "CGGameState.h"
 #include "Save/CGSaveGame.h"
 #include "Kismet/GameplayStatics.h"
 #include "Engine/World.h"
@@ -241,10 +240,15 @@ bool ACGChessBoard::MovePieceTo(ACGChessPiece* PieceDragging, int32 XIndex, int3
 
 	GS->SetIsWhiteTurn(!GS->GetIsWhiteTurn());
 
-	// If next player is in checkmate game is over
-	if(IsCheckmate())
+	// If next player is in checkmate or stalemate game is over
+	ChessGameOver GameOverCondition = GameOverConditionMet();
+	if(GameOverCondition == ChessGameOver::Checkmate)
 	{
 		GS->Checkmate(PieceDragging->Team);
+	}
+	else if(GameOverCondition == ChessGameOver::Stalemate)
+	{
+		GS->Stalemate();
 	}
 
 	return true;
@@ -477,7 +481,7 @@ void ACGChessBoard::SimulateMoveForPieceDragging(ACGChessPiece* Dragging, TArray
 	}
 }
 
-bool ACGChessBoard::IsCheckmate()
+ChessGameOver ACGChessBoard::GameOverConditionMet()
 {
 	TArray<FIntPoint> LastMove = MoveList[MoveList.Num() - 1];
 	int32 TargetTeam = (ChessPiecesOnBoard[LastMove[1].X][LastMove[1].Y]->Team == 0) ? 1 : 0;
@@ -530,15 +534,32 @@ bool ACGChessBoard::IsCheckmate()
 			// Not Checkmate
 			if(DefendingMoves.Num() != 0)
 			{
-				return false;
+				return ChessGameOver::NotOver;
 			}
 		}
 
 		// Checkmate
-		return true;
+		return ChessGameOver::Checkmate;
+	}
+	else
+	{
+		// Is there available moves
+		for(int32 i = 0; i < DefendingPieces.Num(); i++)
+		{
+			TArray<FIntPoint> DefendingMoves = DefendingPieces[i]->GetAvailableMoves(ChessPiecesOnBoard, GRID_SIZE);
+			SimulateMoveForPieceDragging(DefendingPieces[i], MoveList, DefendingMoves, TargetKing);
+			// Not Stalemate
+			if(DefendingMoves.Num() != 0)
+			{
+				return ChessGameOver::NotOver;
+			}
+		}
+
+		// Stalemate
+		return ChessGameOver::Stalemate;
 	}
 
-	return false;
+	return ChessGameOver::NotOver;
 }
 
 void ACGChessBoard::SetHistoryRow(ACGChessPiece* Piece, FString Action, FIntPoint PrevPosition)

@@ -9,6 +9,15 @@
 
 class UCGHud;
 
+/** Game over conditions in chess. */
+UENUM()
+enum ChessGameOver
+{
+	NotOver = 0,
+	Checkmate = 1,
+	Stalemate = 2,
+};
+
 /**
  * GameState class to specify turns, HUD reference and victory.
  */
@@ -38,10 +47,13 @@ public:
 	void SetIsWhiteTurn(bool bIsTurn);
 
 	/**
-	* Send Team that won to HUD.
+	* Send Team that won to HUD for victory screen.
 	* @param Team - 0 for White.
 	*/
 	void Checkmate(int32 Team);
+
+	/** Send game draw to HUD for victory screen. */
+	void Stalemate();
 
 	/**
 	* Send History struct to HUD.
